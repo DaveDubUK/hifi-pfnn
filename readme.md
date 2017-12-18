@@ -1,7 +1,9 @@
 # PFNN for high Fidelity
 
 This project is a work in progress - it doesn't work yet. 
-The basic idea is to see if the PFNN can be adapted to run in HighFidelity using Javascript. The C++ code is being translated into JavaScript. GLM-JS is being used for simpler translation of C++ glm functions.
+The basic idea is to see if the PFNN can be adapted to run in HighFidelity using JavaScript. 
+The C++ code is being translated into JavaScript. 
+GLM-JS is being used for simpler translation of C++ glm functions.
 
 ![HiFi PFNN so far](/pfnn-hifi.gif)
 
@@ -13,7 +15,23 @@ The basic idea is to see if the PFNN can be adapted to run in HighFidelity using
 * Currently working on initialising the Character object (Starting around line 500 of ddAnimate.js). Debugging both C++ and JS versions simultaneouosly to compare variable values. 'pos' and 'vel' values initialising correctly. Currently working on 'rot'. 
 
 ## Current task / sticking point:
-Attempting to find a JS equivalent for quat_exp (line 1078, demo.cpp, link 2 below)
+Attempting to find a JS equivalent for quat_exp (line 1078, demo.cpp, link 2 below). The following code from line 24 ddAnimate.js *may* work:
+
+```javascript
+quat_exp = function(vectorThree) {
+    var w = glm.length(vectorThree);
+    var q = w < 0.01 ? 
+        glm.quat(1, 0, 0, 0) : 
+        glm.quat(
+            Math.cos(w),
+            vectorThree.x * (Math.sin(w) / w),
+            vectorThree.y * (Math.sin(w) / w),
+            vectorThree.z * (Math.sin(w) / w)
+        );
+    return q / Math.sqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+}
+```
+
 
 ## Setting up environment:
 Ideally, the C++ project must first be compiled and run so it can be used as a reference. 
