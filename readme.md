@@ -3,13 +3,14 @@
 This project is a work in progress - it doesn't work yet. 
 The basic idea is to see if the PFNN can be adapted to run in HighFidelity using Javascript. The C++ code is being translated into JavaScript. GLM-JS is being used for simpler translation of C++ glm functions.
 
-![HiFi PFNN so far](davedub.co.uk/downloads/hf/pfnn/pfnn-hifi.gif)
+![HiFi PFNN so far](/pfnn-hifi.gif)
 
 ## Tasks complete:
 * Analysed PFNN data files: Xmean, Xstd, Ymean, Ystd (analysis in PFNN-io-parameter-definition.xls)
 * Converted PFNN binary data into JSON files and loaded into HiFi JavaScript.
-* Floor markers implemented to provide visual feedback whilst developing.
+* Floor markers implemented to provide visual feedback whilst developing (see here: http://davedub.co.uk/downloads/hf/pfnn/pfnn-hifi.gif)
 * PFNN character armature and HiFi armature have a number of structural and naming differences. Quick and dirty re-targetting has been implemented but not yet tested.
+* Currently working on initialising the Character object (Starting around line 500 of ddAnimate.js). Debugging both C++ and JS versions simultaneouosly to compare variable values. 'pos' and 'vel' values initialising correctly. Currently working on 'rot'. 
 
 ## Current task / sticking point:
 Attempting to find a JS equivalent for quat_exp (line 1078, demo.cpp, link 2 below)
