@@ -1,4 +1,4 @@
-# PFNN for high Fidelity
+# PFNN for High Fidelity
 
 This project is a work in progress - it doesn't work yet. 
 The basic idea is to see if the PFNN can be adapted to run in HighFidelity using JavaScript. 
@@ -15,7 +15,7 @@ GLM-JS is being used for simpler translation of C++ glm functions.
 * Currently working on initialising the Character object (Starting around line 500 of ddAnimate.js). Debugging both C++ and JS versions simultaneouosly to compare variable values. 'pos' and 'vel' values initialising correctly. Currently working on 'rot'. 
 
 ## Current task / sticking point:
-Attempting to find a JS equivalent for quat_exp (line 1078, demo.cpp, link 2 below). The following code from line 24 ddAnimate.js *may* work:
+Attempting to find a JS equivalent for quat_exp (line 1078, demo.cpp, link 2 below). The following code (from line 24 ddAnimate.js) *may* work:
 
 ```javascript
 quat_exp = function(vectorThree) {
@@ -35,7 +35,7 @@ quat_exp = function(vectorThree) {
 
 ## Setting up environment:
 Ideally, the C++ project must first be compiled and run so it can be used as a reference. 
-Then the JS project is set up for High Fidelity. There are too many PFNN data files to put on GitHub, so the 'pfnn-data' directory can be downloaded from here:
+Then the JS project is set up for High Fidelity. There are too many PFNN data files to put on GitHub, so the 'pfnn-data' directory must be downloaded from here:
 http://davedub.co.uk/downloads/hf/pfnn/pfnn-data.zip
 Once downloaded, simply unzip into the same folder as 'ddAnimate.js'. Relative paths are used in the code, so it should work fine.
 
