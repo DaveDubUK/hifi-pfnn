@@ -3,7 +3,7 @@
 This project is a work in progress - it doesn't work yet. 
 The basic idea is to see if the PFNN can be adapted to run in HighFidelity using Javascript. The C++ code is being translated into JavaScript. GLM-JS is being used for simpler translation of C++ glm functions.
 
-![HiFi PFNN so far](http://davedub.co.uk/downloads/hf/pfnn/pfnn-hifi.gif)
+![HiFi PFNN so far](davedub.co.uk/downloads/hf/pfnn/pfnn-hifi.gif)
 
 ## Tasks complete:
 * Analysed PFNN data files: Xmean, Xstd, Ymean, Ystd (analysis in PFNN-io-parameter-definition.xls)
