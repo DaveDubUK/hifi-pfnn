@@ -8,7 +8,7 @@ Many thanks to HumbleTim and Fluffy Jenkins for their help so far.
 
 ![HiFi PFNN so far](/pfnn-hifi.gif)
 
-## Tasks complete:
+## Tasks complete
 * Analysed PFNN data files: Xmean, Xstd, Ymean, Ystd (analysis in PFNN-io-parameter-definition.xls)
 * Converted PFNN binary data into JSON files and loaded into HiFi JavaScript.
 * Floor markers implemented to provide visual feedback whilst developing (see above)
@@ -27,13 +27,13 @@ static glm::vec3 mix_directions(glm::vec3 x, glm::vec3 y, float a) {
 }
 ```
 
-## Setting up environment:
+## Setting up environment
 Ideally, the C++ project must first be compiled and run so it can be used as a reference. 
 Then the JS project is set up for High Fidelity. There are too many PFNN data files to put on GitHub, so the 'pfnn-data' directory must be downloaded from here:
 http://davedub.co.uk/downloads/hf/pfnn/pfnn-data.zip
 Once downloaded, simply unzip into the same folder as 'ddAnimate.js'. Relative paths are used in the code, so it should work fine.
 
-## Further information:
+## Further information
 Link 1: For an explanation of and some background on the PFNN, please see here:
 http://theorangeduck.com/page/phase-functioned-neural-networks-character-control
 
