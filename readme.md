@@ -33,8 +33,6 @@ Then the JS project is set up for High Fidelity. There are too many PFNN data fi
 http://davedub.co.uk/downloads/hf/pfnn/pfnn-data.zip
 Once downloaded, simply unzip into the same folder as 'ddAnimate.js'. Relative paths are used in the code, so it should work fine.
 
-Apologies for the state of the code - at this early, experimental stage, formatting code to production standard is not a priority.
-
 Link 1: For an explanation of and some background on the PFNN, please see here:
 http://theorangeduck.com/page/phase-functioned-neural-networks-character-control
 
@@ -43,3 +41,6 @@ https://github.com/sreyafrancis/PFNN
 
 Link 3: For the GLM-JS library, see here:
 https://github.com/humbletim/glm-js
+
+Link 4: Where the PFNN fits in to my larger project:
+http://davedub.co.uk/davedub/wordpress/character-animation-for-virtual-reality/
