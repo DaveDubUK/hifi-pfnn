@@ -16,7 +16,7 @@ Many thanks to HumbleTim and Fluffy Jenkins for their help so far.
 * Initialisation functions implemented. Variable values verified by comparing with corresponding C++ output
 
 ## Current state 
-Currently debugging both C++ and JS versions simultaneouosly to compare variable values in update function (JS) and pre_render, render and post_render (C++).
+Currently debugging both C++ and JS versions simultaneously to compare variable values in update function (JS) and pre_render, render and post_render (C++).
 Current problem is with implementing C++ mix_directions function in JS:
 ```c++
 static glm::vec3 mix_directions(glm::vec3 x, glm::vec3 y, float a) {
