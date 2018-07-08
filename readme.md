@@ -4,6 +4,7 @@ This project is a work in progress - it doesn't work yet.
 The basic idea is to see if the PFNN can be adapted to run in HighFidelity using JavaScript. 
 The C++ code is being translated into JavaScript. 
 GLM-JS is being used for simpler translation of C++ glm functions.
+Many thanks to HumbleTim and Fluffy Jenkins for their help so far. 
 
 ![HiFi PFNN so far](/pfnn-hifi.gif)
 
@@ -12,26 +13,19 @@ GLM-JS is being used for simpler translation of C++ glm functions.
 * Converted PFNN binary data into JSON files and loaded into HiFi JavaScript.
 * Floor markers implemented to provide visual feedback whilst developing (see above)
 * PFNN character armature and HiFi armature have a number of structural and naming differences. Quick and dirty re-targetting has been implemented but not yet tested.
-* Currently working on initialising the Character object (Starting around line 500 of ddAnimate.js). Debugging both C++ and JS versions simultaneouosly to compare variable values. 'pos' and 'vel' values initialising correctly. Currently working on 'rot'. 
+* Initialisation functions implemented. Variable values verified by comparing with corresponding C++ output
 
-## Current task / sticking point:
-Attempting to find a JS equivalent for quat_exp (line 1078, demo.cpp, link 2 below). The following code (from line 24 ddAnimate.js) *may* work:
-
-```javascript
-quat_exp = function(vectorThree) {
-    var w = glm.length(vectorThree);
-    var q = w < 0.01 ? 
-        glm.quat(1, 0, 0, 0) : 
-        glm.quat(
-            Math.cos(w),
-            vectorThree.x * (Math.sin(w) / w),
-            vectorThree.y * (Math.sin(w) / w),
-            vectorThree.z * (Math.sin(w) / w)
-        );
-    return q / Math.sqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+## Current state 
+Currently debugging both C++ and JS versions simultaneouosly to compare variable values in update function (JS) and pre_render, render and post_render (C++).
+Current problem is with implementing C++ mix_directions function in JS:
+```c++
+static glm::vec3 mix_directions(glm::vec3 x, glm::vec3 y, float a) {
+	glm::quat x_q = glm::angleAxis(atan2f(x.x, x.z), glm::vec3(0, 1, 0));
+	glm::quat y_q = glm::angleAxis(atan2f(y.x, y.z), glm::vec3(0, 1, 0));
+	glm::quat z_q = glm::slerp(x_q, y_q, a);
+	return z_q * glm::vec3(0, 0, 1);
 }
 ```
-
 
 ## Setting up environment:
 Ideally, the C++ project must first be compiled and run so it can be used as a reference. 

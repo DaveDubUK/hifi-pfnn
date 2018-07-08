@@ -21,19 +21,40 @@ print("PFNN: Starting up.");
 //Script.include('./libraries/Matrix3.js');
 
 var glm = Script.require('https://git.io/glm-js.min.js');
-quat_exp = function(vectorThree) {
+
+// Helper functions
+var quatExp = function (vectorThree) {
     var w = glm.length(vectorThree);
-    var q = w < 0.01 ? 
-        glm.quat(1, 0, 0, 0) : 
+    var q = w < 0.01 ?
+        glm.quat(1, 0, 0, 0) :
         glm.quat(
             Math.cos(w),
             vectorThree.x * (Math.sin(w) / w),
             vectorThree.y * (Math.sin(w) / w),
             vectorThree.z * (Math.sin(w) / w)
         );
-    return q / Math.sqrt(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+    // print(JSON.stringify(q / Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z))+" fkdjsf");
+    return q;// / Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+};
+
+var mixDirections = function (x, y, a) {
+    var x_q = glm.angleAxis(Math.atan2(x.x, x.z), glm.vec3(0, 1, 0));
+    var y_q = glm.angleAxis(Math.atan2(y.x, y.z), glm.vec3(0, 1, 0));
+    var z_q = glm.slerp(x_q, y_q, a);
+    return z_q * glm.quat.getFront;
+    //return glm.Quat.multiply(z_q, Quat.getFront);
+    //return z_q * glm.vec3(0, 0, 1);
 }
 
+var options = {
+    extraVelocitySmooth : 0.9,
+    extraDirectionSmooth : 0.9,
+    extraVelocitySmooth : 0.9,
+    extraStrafeSmooth : 0.9,
+    extraCrouchedSmooth : 0.9,
+    extraGaitSmooth : 0.1,
+    extraJointSmooth : 0.5 
+}
 
 // precomputation techniques (aka mode) for PFNN
 const MODE_CONSTANT = 0; // default
@@ -43,19 +64,19 @@ const MODE_CUBIC = 2;    // not yet supported (uses interpolation to trade off m
 const PATH_TO_DATA = "./pfnn-data/";
 
 
-PFNN = function(precomputation_technique) {
+PFNN = function(precomputationTechnique) {
 
     var that = {};
     //var data_url = "http://davedub.co.uk/highfidelity/pfnn/";
     
-    var mode = precomputation_technique;
+    var mode = precomputationTechnique;
 
     // array sizes
-    const XDIM = 342; // need to check / adjust for HiFi avatar number of joints
+    const XDIM = 342; // will need to adjust for HiFi avatar number of joints
     const YDIM = 311;
     const HDIM = 512;
 
-    that.XDIM = 342; // need to check / adjust for HiFi avatar number of joints
+    that.XDIM = 342; // will need to adjust for HiFi avatar number of joints
     that.YDIM = 311;
     that.HDIM = 512;
 
@@ -146,9 +167,9 @@ PFNN = function(precomputation_technique) {
         }
     }
 
-    that.updateXpInput = function(index, value) {
-        Xp[index] = value;
-    }
+    //that.updateXpInput = function(index, value) {
+    //    Xp[index] = value;
+    //}
 
     //that.dumpXp = function() {
     //    print("Xp is now: " + JSON.stringify(Xp, null, " "));
@@ -207,73 +228,72 @@ Trajectory = function() {
 
     var debugBool = true;
     
-    const LENGTH = 120; // There are LENGTH trajectory points
-    const MARKER_RATIO = 10; // 3D overlays are drawn every MARKER_RATIO sample points. MARKER_RATIO / LENGTH must be an integer
-    const MOVE_THRESHOLD = 0.01; //0.075; // movement dead zone
-    const MARKER_SIZE = 0.1;
+    that.LENGTH = 120; // There are LENGTH trajectory points
+    that.MARKER_RATIO = 10; // 3D overlays are drawn every MARKER_RATIO sample points. MARKER_RATIO / LENGTH must be an integer
+    that.MOVE_THRESHOLD = 0.01; //0.075; // movement dead zone
+    that.MARKER_SIZE = 0.1;
 
     // following terrain involves LENGTH intersection calls - too many for HiFi JS?
-    var terrain_following = false;
+    that.terrainFollowing = false;
 
     // these are the parameters (Xp values) that are fed into the PFNN
-    var positions = new Array(LENGTH);     // Vec3
-    var directions = new Array(LENGTH);    // Vec3
-    var rotations = new Array(LENGTH);     // Vec3
-    var heights = new Array(LENGTH);       // float
+    that.positions = new Array(that.LENGTH);     // Vec3
+    that.directions = new Array(that.LENGTH);    // Vec3
+    that.rotations = new Array(that.LENGTH);     // Vec3
+    that.heights = new Array(that.LENGTH);       // float
 
-    var gait_stand = new Array(LENGTH);    // float
-    var gait_walk = new Array(LENGTH);     // float
-    var gait_jog = new Array(LENGTH);      // float
-    var gait_crouch = new Array(LENGTH);   // float
-    var gait_jump = new Array(LENGTH);     // float
-    var gait_bump = new Array(LENGTH);     // float
+    that.gaitStand = new Array(that.LENGTH);    // float
+    that.gaitWalk = new Array(that.LENGTH);     // float
+    that.gaitJog = new Array(that.LENGTH);      // float
+    that.gaitCrouch = new Array(that.LENGTH);   // float
+    that.gaitJump = new Array(that.LENGTH);     // float
+    that.gaitBump = new Array(that.LENGTH);     // float
 
-    var target_dir = { x: 0, y: 0, z: 1 }; // Vec3
-    var target_vel = { x: 0, y: 0, z: 0 }; // Vec3
+    that.targetDir = { x: 0, y: 0, z: 1 }; // Vec3
+    that.targetVel = { x: 0, y: 0, z: 0 }; // Vec3
     // End of PFNN Xp parameters
 
     // trajectory overlays
-    var location_overlays = new Array(LENGTH / MARKER_RATIO);
-    var direction_overlays = new Array(LENGTH / MARKER_RATIO);   
+    that.locationOverlays = new Array(that.LENGTH / that.MARKER_RATIO);
+    that.directionOverlays = new Array(that.LENGTH / that.MARKER_RATIO);   
 
     // getters
     that.getLength = function() {
-        return LENGTH;
+        return that.LENGTH;
     }
-
-    that.hips_to_ground = function(pick_ray_origin) {
-        var pick_ray = { origin: pick_ray_origin, direction: { x:0, y:-1, z:0 } };
-        return Entities.findRayIntersection(pick_ray, true).distance; 
-    } 
 
     that.initialise = function() {
         
-        // initialise trajectory     
-        for (var i = 0 ; i < LENGTH ; i++) {
-            positions[i] = Vec3.sum(MyAvatar.position, { x:0, y:-character.getAvatarHipsToFeet(), z:0 });
-            rotations[i] = Quat.multiply(MyAvatar.orientation, Quat.getFront);  // Quat.safeEulerAngles(MyAvatar.orientation);
+        // initialise trajectory    
+
+        var pickRay = { origin: MyAvatar.position, direction: { x:0, y:-1, z:0 } };
+        var hipsToFeet = Entities.findRayIntersection(pickRay, true).distance; 
+
+        for (var i = 0 ; i < that.LENGTH ; i++) {
+            that.positions[i] = Vec3.sum(MyAvatar.position, { x:0.0, y:-hipsToFeet, z:0.0 });
+            that.rotations[i] = Quat.multiply(MyAvatar.orientation, Quat.getFront);  // Quat.safeEulerAngles(MyAvatar.orientation);
             //directions[i] = Quat.getFront(MyAvatar.headOrientation, Quat.getFront); // Quat.safeEulerAngles(MyAvatar.orientation);{ x: 0, y: 0, z: 1 };
-            directions[i] = Quat.multiply(MyAvatar.orientation, Quat.getFront);
-            heights[i] = that.hips_to_ground(MyAvatar.position);
-            gait_stand[i] = 0.0;
-            gait_walk[i] = 0.0;
-            gait_jog[i] = 0.0;
-            gait_crouch[i] = 0.0;
-            gait_jump[i] = 0.0;
-            gait_bump[i] = 0.0;
+            that.directions[i] = Quat.multiply(MyAvatar.orientation, Quat.getFront);
+            that.heights[i] = character.avatarHipsToFeet(MyAvatar.position);
+            that.gaitStand[i] = 1.0;
+            that.gaitWalk[i] = 0.0;
+            that.gaitJog[i] = 0.0;
+            that.gaitCrouch[i] = 0.0;
+            that.gaitJump[i] = 0.0;
+            that.gaitBump[i] = 0.0;
         }
-        target_dir = { x: 0, y: 0, z: 1 }; 
-        target_vel = { x: 0, y: 0, z: 0 };  
+        that.targetDir = { x: 0, y: 0, z: 1 }; 
+        that.targetVel = { x: 0, y: 0, z: 0 };  
         
         // initialse overlays
-        for (var i = 0 ; i < LENGTH / MARKER_RATIO ; i++) {
-            var location_overlay = Overlays.addOverlay("sphere", {
-                position: positions[i],
-                rotation: rotations[i],
+        for (var i = 0 ; i < that.LENGTH / that.MARKER_RATIO ; i++) {
+            var locationOverlay = Overlays.addOverlay("sphere", {
+                position: that.positions[i],
+                rotation: that.rotations[i],
                 color: {
-                    //red: gait_jump[i],
-                    //green: gait_bump[i],
-                    //blue: gait_crouch[i]
+                    //red: gaitJump[i],
+                    //green: gaitBump[i],
+                    //blue: gaitCrouch[i]
                     red: 0,
                     green: 0,
                     blue: 0
@@ -281,156 +301,29 @@ Trajectory = function() {
                 alpha: 1.0,
                 visible: true,
                 isSolid: true,
-                size: MARKER_SIZE,
-                scale: MARKER_SIZE,
+                size: that.MARKER_SIZE,
+                scale: that.MARKER_SIZE,
                 //isFacingAvatar: true,
                 drawInFront: false
             });
-            var direction_overlay = Overlays.addOverlay("line3d", {
-                    start: positions[i],
-                    end: Vec3.sum(positions[i], Vec3.multiply(0.25, directions[i])),
-                    color: { red: 0, green: 0, blue: 0},
-                    alpha: 1,
-                    lineWidth: 5,
-                    drawInFront: false
+            var directionOverlay = Overlays.addOverlay("line3d", {
+                start: that.positions[i],
+                end: Vec3.sum(that.positions[i], Vec3.multiply(0.25, that.directions[i])),
+                color: { red: 0, green: 0, blue: 0},
+                alpha: 1,
+                lineWidth: 5,
+                drawInFront: false
             });
             // store overlays
-            location_overlays[i] = location_overlay;  
-            direction_overlays[i] = direction_overlay;
+            that.locationOverlays[i] = locationOverlay;  
+            that.directionOverlays[i] = directionOverlay;
         }       
     }    
 
-    that.update = function(delta_time) {
-
-        //print("delta_time is " + delta_time)
-
-        //print("Distance from surface is " + avatarHipsToFeet + "m.");
-        var current_height = that.hips_to_ground(MyAvatar.position);
-        var current_position = Vec3.sum(MyAvatar.position, { x:0, y:-current_height, z:0 }); 
-        //print("Current trajectory marker position is { x:" + current_position.x.toFixed(5) + ", y:" + current_position.y.toFixed(5) + ", z:" + current_position.z.toFixed(5) + " }");
-        var current_rotation = Quat.getFront(MyAvatar.orientation); // Quat.inverse(MyAvatar.orientation); // Vec3.multiplyQbyV(Quat.inverse(MyAvatar.orientation), MyAvatar.velocity); // Vec3.normalize({ x: MyAvatar.bodyYaw, y:0, z:0 }); //  MyAvatar.orientation; 
-        var current_direction = Quat.getFront(MyAvatar.headOrientation); //Vec3.normalize({ x: MyAvatar.headYaw, y: 0, z: 0 });  
-
-        //print("Current height: " + current_height);
-
-        // update current trajectory
-        positions[LENGTH / 2] = current_position;
-        rotations[LENGTH / 2] = current_rotation;
-        heights[LENGTH / 2] = current_height;
-        directions[LENGTH / 2] = current_direction;
-
-        var current_speed = Vec3.length(MyAvatar.velocity);
-        gait_stand[LENGTH / 2] = current_speed > MOVE_THRESHOLD ? 1 : 0;
-        gait_walk[LENGTH / 2] = current_speed < MOVE_THRESHOLD ? 1 : 0;
-        gait_jog[LENGTH / 2] = gait_jog[i+1];
-        gait_crouch[LENGTH / 2] = gait_crouch[i+1];
-        gait_jump[LENGTH / 2] = gait_jump[i+1];
-        gait_bump[LENGTH / 2] = gait_bump[i+1];
-
-        target_dir = { x: 0, y: 0, z: 1 }; 
-        target_vel = { x: 0, y: 0, z: 0 }; 
-
-        // update future trajectory
-        for (var i = LENGTH / 2 + 1 ; i < LENGTH ; i++) {
-            // distance to next trajectory marker
-            var step_forward = (i - (LENGTH / 2 + 1)) / (MARKER_RATIO * 4);
-            var next_position = Vec3.sum(current_position, Vec3.multiply(step_forward, MyAvatar.velocity));
-            // Get the terrain height for this position
-            var forward_probe_position = { x: next_position.x, y: MyAvatar.position.y, z: next_position.z };
-            var next_height = terrain_following ? 
-                              that.hips_to_ground(forward_probe_position) :
-                              current_height; //  debug only
-            heights[i] = next_height;
-            next_position.y = forward_probe_position.y - next_height;
-            positions[i] = next_position;
-        }
-
-        // render trajectory
-        for (var i = 0 ; i < LENGTH ; i+= 10) {
-            Overlays.editOverlay(location_overlays[i / MARKER_RATIO], {
-                position: positions[i],
-                rotations: rotations[i],
-            });
-            Overlays.editOverlay(direction_overlays[i / MARKER_RATIO], {
-                start: positions[i],
-                end: Vec3.sum(positions[i], Vec3.multiply(0.25, rotations[i]))
-            });
-        }
-
-        // update past trajectory
-        for (var i = 0 ; i < LENGTH / 2 ; i++) {
-            positions[i] = positions[ i + 1 ];
-            rotations[i] = rotations[ i + 1 ];
-            directions[i] = directions[i + 1];
-            heights[i] = heights[ i + 1 ];
-            gait_stand[i] = gait_stand[i+1];
-            gait_walk[i] = gait_walk[i+1];
-            gait_jog[i] = gait_jog[i+1];
-            gait_crouch[i] = gait_crouch[i+1];
-            gait_jump[i] = gait_jump[i+1];
-            gait_bump[i] = gait_bump[i+1];
-        }    
-
-        // Now to load up our PFNN X (input) values...
-        //pfnn.updateXpInput(index, value)
-
-        // Load up the positions and gaits
-        for ( i = 0 ; i < 132 ; i++ ) {
-            if (i < 12) {
-                pfnn.updateXpInput(i, positions[i].x);
-            } else if (i < 24) {
-                pfnn.updateXpInput(i, positions[i - 12].z);
-            } else if (i < 36) {
-                pfnn.updateXpInput(i, directions[i - 24].x);
-            } else if (i < 48) {
-                pfnn.updateXpInput(i, directions[i - 36].z);
-            } else if (i < 60) {
-                pfnn.updateXpInput(i, gait_stand[i - 48]);
-            } else if (i < 72) {
-                pfnn.updateXpInput(i, gait_walk[i - 60]);
-            } else if (i < 84) {
-                pfnn.updateXpInput(i, gait_jog[i - 72]);
-            } else if (i < 96) {
-                pfnn.updateXpInput(i, gait_crouch[i - 84]);
-            } else if (i < 108) {
-                pfnn.updateXpInput(i, gait_jump[i - 96]);
-            } else if (i < 120) { // this section is unused (could be used for flying gait in the future)
-                pfnn.updateXpInput(i, 0);
-            }
-        }
-        // Load up the joint current and previous positions
-        var i = 120;
-        var jointPositions = character.getJointPositions();
-        for (joint in PFNNArmature) {
-        //for ( i = 120 ; i < pfnn.XDIM - 36 ; i+=6 ) {
-            //var jointNumber = (i - 120);
-            var characterJointPositions = character.getJointPositions();
-            if (debugBool) { 
-                //print("Putting values for " + PFNNArmature[joint] + " into Xp position " + i + ".");
-            }
-            
-            pfnn.updateXpInput(i,   jointPositions[joint].x);
-            pfnn.updateXpInput(i+1, jointPositions[joint].y);
-            pfnn.updateXpInput(i+2, jointPositions[joint].z);
-            
-            pfnn.updateXpInput(i+3, 3.1415926536);
-            pfnn.updateXpInput(i+4, 3.1415926536);
-            pfnn.updateXpInput(i+5, 3.1415926536);
-            /**/
-            i+=6;
-        }
-        if (debugBool) {
-            debugBool = false;
-            //pfnn.dumpXp();
-        }
-
-        pfnn.predict(0); // character.phase);       
-    }
-
     that.clean_up = function() {
-        for (var i = 0 ; i < LENGTH ; i++) {
-            Overlays.deleteOverlay(location_overlays[i]);
-            Overlays.deleteOverlay(direction_overlays[i]);
+        for (var i = 0 ; i < that.LENGTH ; i++) {
+            Overlays.deleteOverlay(that.locationOverlays[i]);
+            Overlays.deleteOverlay(that.directionOverlays[i]);
         }
     }
 
@@ -443,32 +336,36 @@ Character = function() {
 
     const JOINT_NUM = 31; // including End Sites (for some reason) - not 25;
 
+    var phase = 0;
+
     // Initialise (by calling initialise) after trajectory and pfnn are instantiated
-    var joint_positions = new Array(JOINT_NUM);
-    var joint_velocities = new Array(JOINT_NUM);
-    var joint_rotations = new Array(JOINT_NUM);
+    var jointPositions = new Array(JOINT_NUM);
+    var jointVelocities = new Array(JOINT_NUM);
+    var jointRotations = new Array(JOINT_NUM);
+
+    that.strafeTarget = 0;
+    that.strafeAmount = 0;
 
     // Extras added by Dave
-    var avatarHipsToFeet = 1.0;
+    that.avatarHipsToFeet = function(pickRayOrigin) {
+        var pickRay = { origin: pickRayOrigin, direction: { x:0, y:-1, z:0 } };
+        return Entities.findRayIntersection(pickRay, true).distance; 
+    } 
 
     that.getJointPositions = function() {
-        return joint_positions;
-    }
-
-    that.getAvatarHipsToFeet = function() {
-        return avatarHipsToFeet;
+        return jointPositions;
     }
 
     that.initialise = function() {
+        MyAvatar.position = glm.vec3(0,0,0);
+        var hipsToFeet = this.avatarHipsToFeet(MyAvatar.position);
         print("Character initialise called.");
         MyAvatar.orientation = Quat.fromPitchYawRollDegrees(0, 0, 0);
-        var pick_ray = {origin: MyAvatar.position, direction: { x:0, y:-1, z:0 }};
-        avatarHipsToFeet = Entities.findRayIntersection(pick_ray, true).distance;
-        print("Hips to feet comes in at " + avatarHipsToFeet.toFixed(3) + "m.");
-        MyAvatar.position = { x: 0, y: avatarHipsToFeet, z: 0 };
-        print("Set MyAvatar.position to { x:0, y:avatarHipsToFeet, z:0");
+        print("Hips to feet comes in at " + hipsToFeet.toFixed(3) + "m.");
+        MyAvatar.position = { x: 0, y: hipsToFeet, z: 0 };
+        print("Set MyAvatar.position to { x:0, y:hipsToFeet, z:0");
         print("Avatar root at { x:" + MyAvatar.position.x.toFixed(3) +
-              ", y:" + (MyAvatar.position.y - avatarHipsToFeet).toFixed(3) + 
+              ", y:" + (MyAvatar.position.y - hipsToFeet).toFixed(3) + 
               ", z:" + MyAvatar.position.z.toFixed(3) + " }");
         print("Avatar hips at { x:" + MyAvatar.position.x.toFixed(3) +
               ", y:" + MyAvatar.position.y.toFixed(3) + 
@@ -476,34 +373,18 @@ Character = function() {
 
         var trajectoryLength = trajectory.getLength();
         //var rootPosition = Vec3.sum(MyAvatar.position, { x:0, y:-character.getAvatarHipsToFeet(), z:0 });
-        var rootPosition = glm.vec3(MyAvatar.position.x, MyAvatar.position.y, MyAvatar.position.z).add(glm.vec3(0, -character.getAvatarHipsToFeet(), 0))
+        var rootPosition = glm.vec3(MyAvatar.position.x, MyAvatar.position.y, MyAvatar.position.z).add(glm.vec3(0, -hipsToFeet, 0))
         //print("Character.initialise: rootPosition is { x:" + rootPosition.x + ", y:" + rootPosition.y + ", z:" + rootPosition.z + " }");
         var rootRotation = glm.mat3();
         var Yp = pfnn.getYp();
         var debugBool = true;
-        for (i = 0; i < trajectoryLength; i++) {
+        for (i = 0; i < JOINT_NUM; i++) {
 
             var opos = 8 + (((trajectoryLength / 2) / 10) * 4) + (JOINT_NUM * 3 * 0);
             var ovel = 8 + (((trajectoryLength / 2) / 10) * 4) + (JOINT_NUM * 3 * 1);
             var orot = 8 + (((trajectoryLength / 2) / 10) * 4) + (JOINT_NUM * 3 * 2);
 
-/*
-glm::vec3 pos = (root_rotation * glm::vec3(Yp(opos + i * 3 + 0), Yp(opos + i * 3 + 1), Yp(opos + i * 3 + 2))) + root_position;
-glm::vec3 vel = (root_rotation * glm::vec3(Yp(ovel + i * 3 + 0), Yp(ovel + i * 3 + 1), Yp(ovel + i * 3 + 2)));
-glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(Yp(orot + i * 3 + 0), Yp(orot + i * 3 + 1), Yp(orot + i * 3 + 2)))));            
-
-xPos is 0
-yPos is 93.1293793
-zPos is 0
-xRot is 0.0562893562
-yRot is -0.00699363137
-zRot is -0.000217798908
-xVel is -0.00416085264YpOpos
-zVel is 1.23609018
-*/
-
-            //from: glm::vec3 pos = (root_rotation * glm::vec3(Yp(opos + i * 3 + 0), Yp(opos + i * 3 + 1), Yp(opos + i * 3 + 2))) + root_position;
-            //from: HumbleTim pos = glm.vec3(glm.mat4(root_rotation).mul(glm.vec4(glm.vec3(),1))).add(root_position);
+            //from: glm.vec3 pos = (root_rotation * glm.vec3(Yp(opos + i * 3 + 0), Yp(opos + i * 3 + 1), Yp(opos + i * 3 + 2))) + root_position;
             var oposX = parseFloat(Yp[opos + i * 3 + 0]);
             var oposY = parseFloat(Yp[opos + i * 3 + 1]);
             var oposZ = parseFloat(Yp[opos + i * 3 + 2]);
@@ -513,7 +394,7 @@ zVel is 1.23609018
             oposVec3 = glm.vec3(oposVec4);
             var pos = oposVec3.add(rootPosition);
 
-            // from: glm::vec3 vel = (root_rotation * glm::vec3(Yp(ovel + i * 3 + 0), Yp(ovel + i * 3 + 1), Yp(ovel + i * 3 + 2)));
+            // from: glm.vec3 vel = (root_rotation * glm.vec3(Yp(ovel + i * 3 + 0), Yp(ovel + i * 3 + 1), Yp(ovel + i * 3 + 2)));
             var ovelX = parseFloat(Yp[ovel + i * 3 + 0]);
             var ovelY = parseFloat(Yp[ovel + i * 3 + 1]);
             var ovelZ = parseFloat(Yp[ovel + i * 3 + 2]);
@@ -522,150 +403,46 @@ zVel is 1.23609018
             ovelVec4 = glm.mat4(rootRotation).mul(ovelVec4);
             var vel = glm.vec3(ovelVec4);
 
-            // from: glm::mat3 rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(Yp(orot + i * 3 + 0), Yp(orot + i * 3 + 1), Yp(orot + i * 3 + 2)))));
+            // from: glm.mat3 rot = (root_rotation * glm.toMat3(quatExp(glm.vec3(Yp(orot + i * 3 + 0), Yp(orot + i * 3 + 1), Yp(orot + i * 3 + 2)))));
             var orotX = parseFloat(Yp[orot + i * 3 + 0]);
             var orotY = parseFloat(Yp[orot + i * 3 + 1]);
             var orotZ = parseFloat(Yp[orot + i * 3 + 2]);
             var orotVec3 = glm.vec3(orotX, orotY, orotZ);
-            //var orotVec4 = quat_exp(orotVec3);
-            //var orotMat3 = glm.mat3.(orotVec4);
-            //var rot = glm.mat3(orotMat3).mul(rootRotation);
+            var orotVec4 = quatExp(orotVec3);
+            var orotMat3 = glm.mat3(glm.toMat4(orotVec4));
+            var rot = glm.mat3(orotMat3).mul(rootRotation);
 
-            var rot = rootRotation;
+            phase = 0.0;
 
-
-
-
+            // the 'should be' values copied over from C++ code values
             if(debugBool) {
                 debugBool = false;
-                print("\nJOINT_NUM is " + JOINT_NUM.toFixed(2) +
-                      "\ntrajectoryLength is " + trajectoryLength.toFixed(2) + 
-                      "\nopos is " + opos.toFixed(2) + 
-                      "\novel is " + ovel.toFixed(2) + 
-                      "\norot is " + orot.toFixed(2) +
+                print("\nJOINT_NUM is " + JOINT_NUM.toFixed(2) + " should be 31" +
+                      "\ntrajectoryLength is " + trajectoryLength.toFixed(2) + " should be 120" +
+                      "\nopos is " + opos.toFixed(2) + " should be 32" +
+                      "\novel is " + ovel.toFixed(2) + " should be 125" +
+                      "\norot is " + orot.toFixed(2) + " should be 218" +
 
-                      "\nxPos is " + Yp[opos + i * 3 + 0] +
-                      "\nyPos is " + Yp[opos + i * 3 + 1] +
-                      "\nzPos is " + Yp[opos + i * 3 + 2] +
+                      "\npos.x is " + Yp[opos + i * 3 + 0] + " should be 0" +
+                      "\npos.y is " + Yp[opos + i * 3 + 1] + " should be 93.1293793" +
+                      "\npos.z is " + Yp[opos + i * 3 + 2] + " should be 0" +
 
-                      "\nxRot is " + Yp[orot + i * 3 + 0] +
-                      "\nyRot is " + Yp[orot + i * 3 + 1] +
-                      "\nzRot is " + Yp[orot + i * 3 + 2] +
+                      //"\nrot.x is " + Yp[orot + i * 3 + 0] + " should be 31" +
+                      //"\nrot.y is " + Yp[orot + i * 3 + 1] + " should be 31" +
+                      //"\nrot.z is " + Yp[orot + i * 3 + 2] + " should be 31" +
 
-                      "\nxVel is " + Yp[ovel + i * 3 + 0] +
-                      "\nyVel is " + Yp[ovel + i * 3 + 1] +
-                      "\nzVel is " + Yp[ovel + i * 3 + 2] +
+                      //"\nxVel is " + Yp[ovel + i * 3 + 0] + " should be 31" +
+                      //"\nyVel is " + Yp[ovel + i * 3 + 1] + " should be 31" +
+                      //"\nzVel is " + Yp[ovel + i * 3 + 2] + " should be 31" +
 
 
-                      "\npos is " + pos.json +
-                      "\nvel is " + vel.json +
-                      "\nrot is " + rot.json +
+                      "\npos is " + pos.json + " should be {x=0.000000000 y=93.1293793 z=0.000000000 ...}" +
+                      "\nvel is " + vel.json + " should be {x=-0.00416085264 y=-0.00193083170 z=1.23609018 ...}" +
+                      "\nrot is " + rot.json + " should be + {x=0.999902189 y=-0.00122115412 z=0.0139327878...}, {x=-0.000351825875 y=0.993669689 z=0.112340435...},{x=-0.0139817735 y=-0.112334356 z=0.993572116...}" +
 
 
                       " ");
-            } 
-/*
-            var pos = (root_rotation * glm::vec3(Yp(opos + i * 3 + 0), Yp(opos + i * 3 + 1), Yp(opos + i * 3 + 2))) + root_position;
-            var vel = (root_rotation * glm::vec3(Yp(ovel + i * 3 + 0), Yp(ovel + i * 3 + 1), Yp(ovel + i * 3 + 2)));
-            var rot = (root_rotation * glm::toMat3(quat_exp(glm::vec3(Yp(orot + i * 3 + 0), Yp(orot + i * 3 + 1), Yp(orot + i * 3 + 2)))));            
-            
-            var pos = Vec3.cross(rootRotation, Vec3.sum( { x:Yp[opos + i * 3 + 0], y: Yp[opos + i * 3 + 1], z: Yp[opos + i * 3 + 2] }, rootPosition));
-            var vel = Vec3.cross(rootRotation, { x:Yp[ovel + i * 3 + 0], y:Yp[ovel + i * 3 + 1], z:Yp[ovel + i * 3 + 2] });
-            var rot = Vec3.cross(rootRotation, { x:Yp[orot + i * 3 + 0], y:Yp[orot + i * 3 + 1], z:Yp[orot + i * 3 + 2] });
-
-            joint_positions[i] = pos;
-            joint_velocities[i] = vel;
-            joint_rotations[i] = rot;
-            */
-        }
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    //
-    // There are a number of differences between the PFNN demo character and the HiFi avi character
-    // Ignoring finger / thumb bones, the PFNN demo character has the following extra bones:
-    //
-    //    ROOT
-    //    Neck1
-    //    LHipJoint
-    //    RHipJoint
-    //    End Site (x5)
-    // 
-    // The joint data from these will be combined into parent / children joints. 
-    //
-    // Moreover, the skeleton structure differs quite significantly - the PFNN demo skeleton *looks*
-    // like Carnegie Melon data, which has always been difficult to deal with...
-    //
-    //
-
-
-    //that.phase = 0;
-
-    var debugBool = true;
-
-    // Here we update the HiFiArmature with current values
-    that.update = function() {
-        for (joint in HiFiArmature) {
-            HiFiArmature[joint].prv = 0;
-            HiFiArmature[joint].pos = MyAvatar.getJointPosition(joint);
-        }
-        var jointIndex = 0;
-        for (joint in PFNNArmature) {
-
-            joint_velocities[jointIndex] = { X:0, y:0, z:0 };
-
-            // Translate between armatures
-            switch (PFNNArmature[joint]) {
-
-                case "ROOT" :
-                    joint_positions[jointIndex] = Vec3.sum(HiFiArmature["Hips"].pos, avatarHipsToFeet);
-                    break;
-
-                case "Neck" :
-                case "Neck1" :
-                    joint_positions[jointIndex] = Vec3.multiply(HiFiArmature["Neck"].pos, 0.5);
-                    break;
-
-                case "LeftHipJoint" :
-                case "LeftUpLeg" :
-                    joint_positions[jointIndex] = Vec3.multiply(HiFiArmature["LeftUpLeg"].pos, 0.5);
-                    break;
-
-                case "RightHipJoint" :
-                case "RightUpLeg" :
-                    joint_positions[jointIndex] = Vec3.multiply(HiFiArmature["RightUpLeg"].pos, 0.5);
-                    break;
-
-                case "LowerBack" :
-                    joint_positions[jointIndex] = HiFiArmature["Spine"].pos;
-                    break;
-
-                case "Spine" :
-                    joint_positions[jointIndex] = HiFiArmature["Spine1"].pos;
-                    break;
-
-                case "Spine1" :
-                    joint_positions[jointIndex] = HiFiArmature["Spine2"].pos;
-                    break;
-
-                case "End Site" :
-                    joint_positions[jointIndex] = { x:0, y:0, z:0 };
-                    break;
-
-                default :
-                    joint_positions[jointIndex] = HiFiArmature[PFNNArmature[joint]].pos;
-                    break;
             }
-            if (debugBool) {
-                //print("Set PFNNArmature " + PFNNArmature[joint] + " to " + 
-                //      joint_positions[jointIndex].x + ", " +
-                //      joint_positions[jointIndex].y + ", " +
-                //      joint_positions[jointIndex].z);
-            }
-            jointIndex++;
-        }
-        if (debugBool) {
-            debugBool = false;
         }
     }
     return that;
@@ -706,30 +483,6 @@ arrayFunctions = (function() {
     }
 })(); // end object literal
 
-/*
-//processKeyPressEvent = function(event) {
-function processKeyPressEvent(event) {
-    if (event.isAutoRepeat) {  // isAutoRepeat is true when held down (or when Windows feels like it)
-        print("Event is autorepeat");
-        return;
-    }
-    var pick_ray = {origin: MyAvatar.position, direction: { x:0, y:-1, z:0 }};
-    var avatarHipsToFeet = Entities.findRayIntersection(pick_ray, true).distance;
-    if (event.text == "P") {
-        print("Avatar root at { x:" + MyAvatar.position.x.toFixed(3) +
-              ", y:" + (MyAvatar.position.y - avatarHipsToFeet).toFixed(3) + 
-              ", z:" + MyAvatar.position.z.toFixed(3) + " }");
-        print("Avatar hips at { x:" + MyAvatar.position.x.toFixed(3) +
-              ", y:" + MyAvatar.position.y.toFixed(3) + 
-              ", z:" + MyAvatar.position.z.toFixed(3) + " }");
-    } else if (event.text == "O") {
-        MyAvatar.position = { x: 0, y: avatarHipsToFeet, z: 0 };
-        print("Set MyAvatar.position to { x:0, y:avatarHipsToFeet, z:0");
-    } else if (event.text == "I") {
-        print("Hips to feet comes in at " + avatarHipsToFeet.toFixed(3) + "m.");
-    }
-}
-*/
 
 var HiFiArmature = {
     "Hips" : {
@@ -1472,6 +1225,414 @@ for (joint in prerotations.joints) {
 print("Avatar has " + numJoints + " joints (plus end sites).");
 
 
+var update = function(deltaTime) {
+
+    // this is effectively used to comment out code that needs work
+    // whilst ensuring that it at least makes sense to the JS 'compiler'
+    var codeHadNoIssues = false;
+
+    //////////////////////////////////////////////////////////////////
+    // Update Target Direction / Velocity: C++ pre_render line 1458 //
+    //////////////////////////////////////////////////////////////////
+
+    var trajectoryTargetDirectionNew = Quat.getFront(MyAvatar.headOrientation); 
+    /* Using the head orientation makes a lot fo sense to me, but we will probablly 
+    // need to port the C++ version to match variables:
+    // glm::vec3 trajectory_target_direction_new = glm::normalize(glm::vec3(camera->direction().x, 0.0, camera->direction().z));
+    var upVector = glm.vec3(0, 1, 0);
+    var horizontalAngle = Math.atan2(trajectoryTargetDirectionNew.x,
+                                     trajectoryTargetDirectionNew.z);
+    var trajectoryTargetRotationAngle = glm.rotate(horizontalAngle, upVector);
+    var trajectoryTargetRotation = glm.mat3(trajectoryTargetRotationAngle);
+    print("trajectoryTargetRotationAngle is " + trajectoryTargetRotationAngle); */
+    var trajectoryTargetRotation = Quat.getFront(MyAvatar.orientation);
+    // targetVelSpeed not needed, as is only used to calculate velocity, hopefully we can use MyAvatar.velocity for now
+    //var targetVelSpeed = MyAvatar.walkSpeed;
+    //trajectory.targetVel = glm.mix(trajectory.targetVel, trajectoryTargetVelocityNew, options.extraVelocitySmooth);    
+    var trajectoryTargetVelocityNew = MyAvatar.velocity;
+    trajectory.targetVel = trajectoryTargetVelocityNew;
+
+    // dummy values
+    character.strafeTarget = 0;
+    character.strafeAmount = 0;
+
+    var trajectoryTargetVelocityDir = Vec3.length(trajectory.targetVel) < 1e-05 ? trajectory.targetDir : Vec3.normalize(trajectory.targetVel);
+    trajectoryTargetDirectionNew = mixDirections(trajectoryTargetVelocityDir, trajectoryTargetDirectionNew, character.strafeAmount);
+
+    // Current issue: mixDirections is returning null...
+    print("trajectoryTargetDirectionNew: " + trajectoryTargetDirectionNew);
+
+    if (codeHadNoIssues) {
+
+        trajectory.targetDir = mixDirections(trajectory.targetDir, trajectoryTargetDirectionNew, options.extraDirectionSmooth);
+
+        ////////////////////////////////////////////////////
+        // Update Gait: C++ pre_render starting line 1483 //
+        ////////////////////////////////////////////////////
+        if (glm.length(trajectory.targetVel) < 0.1) {
+            // Standing
+            var standAmount = 1.0 - glm.clamp(glm.length(trajectory.targetVel) / 0.1, 0.0, 1.0);
+            trajectory.gaitStand[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitStand[trajectory.LENGTH / 2], standAmount, options.extraGaitSmooth);
+            trajectory.gaitWalk[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitWalk[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitJog[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJog[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitCrouch[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitCrouch[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitJump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitBump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitBump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+        } else if (character.crouchedAmount > 0.1) {
+            // Crouching
+            trajectory.gaitStand[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitStand[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitWalk[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitWalk[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitJog[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJog[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitCrouch[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitCrouch[trajectory.LENGTH / 2], character.crouchedAmount, options.extraGaitSmooth);
+            trajectory.gaitJump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitBump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitBump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+        } else if (false) {
+            // Jogging - set false for now, will need to experiment with threshold
+            trajectory.gaitStand[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitStand[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitWalk[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitWalk[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitJog[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJog[trajectory.LENGTH / 2], 1.0, options.extraGaitSmooth);
+            trajectory.gaitCrouch[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitCrouch[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitJump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitBump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitBump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+        } else {
+            // Walking
+            trajectory.gaitStand[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitStand[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitWalk[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitWalk[trajectory.LENGTH / 2], 1.0, options.extraGaitSmooth);
+            trajectory.gaitJog[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJog[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitCrouch[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitCrouch[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitJump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitJump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+            trajectory.gaitBump[trajectory.LENGTH / 2] = glm.mix(trajectory.gaitBump[trajectory.LENGTH / 2], 0.0, options.extraGaitSmooth);
+        }
+
+        ////////////////////////////////////////////////////////
+        // Predict Future Trajectory C++ pre_render line 1519 //
+        ////////////////////////////////////////////////////////
+        var trajectoryPositionsBlend = new Array(trajectory.LENGTH);
+                trajectoryPositionsBlend[trajectory.LENGTH / 2] = trajectory.positions[trajectory.LENGTH / 2];
+
+        for (i = trajectory.LENGTH / 2 + 1; i < trajectory.LENGTH; i++) {
+
+            var biasPos = character.responsive ? glm.mix(2.0, 2.0, character.strafeAmount) : glm.mix(0.5, 1.0, character.strafeAmount);
+            var biasDir = character.responsive ? glm.mix(5.0, 3.0, character.strafeAmount) : glm.mix(2.0, 0.5, character.strafeAmount);
+
+            var scalePos = (1.0 - Math.pow(1.0 - ((i - trajectory.LENGTH / 2) / (trajectory.LENGTH / 2)), biasPos));
+            var scaleDir = (1.0 - Math.pow(1.0 - ((i - trajectory.LENGTH / 2) / (trajectory.LENGTH / 2)), biasDir));
+
+            trajectoryPositionsBlend[i] = trajectoryPositionsBlend[i - 1] + glm.mix(
+                trajectory.positions[i] - trajectory.positions[i - 1],
+                trajectory.target_vel,
+                scalePos);
+
+            /* Collide with walls */
+            for (j = 0; j < areas.numWalls(); j++) {
+                var trjpoint = glm.vec2(trajectoryPositionsBlend[i].x, trajectoryPositionsBlend[i].z);
+                if (glm.length(trjpoint - ((areas.wallStart[j] + areas.wallStop[j]) / 2.0)) >
+                    glm.length(areas.wallStart[j] - areas.wallStop[j])) {
+                    continue;
+                }
+                var segpoint = segment_nearest(areas.wallStart[j], areas.wallStop[j], trjpoint);
+                var segdist = glm.length(segpoint - trjpoint);
+                if (segdist < areas.wallWidth[j] + 100.0) {
+                    var prjpoint0 = (areas.wallWidth[j] + 0.0) * glm.normalize(trjpoint - segpoint) + segpoint;
+                    var prjpoint1 = (areas.wallWidth[j] + 100.0) * glm.normalize(trjpoint - segpoint) + segpoint;
+                    var prjpoint = glm.mix(prjpoint0, prjpoint1, glm.clamp((segdist - areas.wallWidth[j]) / 100.0, 0.0, 1.0));
+                    trajectoryPositionsBlend[i].x = prjpoint.x;
+                    trajectoryPositionsBlend[i].z = prjpoint.y;
+                }
+            }
+
+            trajectory.directions[i] = mixDirections(trajectory.directions[i], trajectory.targetDir, scaleDir);
+            trajectory.heights[i] = trajectory.heights[trajectory.LENGTH / 2];
+            trajectory.gaitStand[i] = trajectory.gaitStand[trajectory.LENGTH / 2];
+            trajectory.gaitWalk[i] = trajectory.gaitWalk[trajectory.LENGTH / 2];
+            trajectory.gaitJog[i] = trajectory.gaitJog[trajectory.LENGTH / 2];
+            trajectory.gaitCrouch[i] = trajectory.gaitCrouch[trajectory.LENGTH / 2];
+            trajectory.gaitJump[i] = trajectory.gaitJump[trajectory.LENGTH / 2];
+            trajectory.gaitBump[i] = trajectory.gaitBump[trajectory.LENGTH / 2];
+        }
+
+        for (i = trajectory.LENGTH / 2 + 1; i < trajectory.LENGTH; i++) {
+            trajectory.positions[i] = trajectoryPositionsBlend[i];
+        }
+        
+        // Work on these aspects isn't essential for getting a standing / walking demo together
+        // but will need to be implemented at some point
+        // (flying will be needed too)
+        /* Jumps 
+        for (i = trajectory.LENGTH / 2; i < trajectory.LENGTH; i++) {
+            trajectory.gaitJump[i] = 0.0;
+            for (j = 0; j < areas.numJumps(); j++) {
+                var dist = glm.length(trajectory.positions[i] - areas.jump_pos[j]);
+                trajectory.gaitJump[i] = Math.max(trajectory.gaitJump[i],
+                    1.0 - glm.clamp((dist - areas.jumpSize[j]) / areas.jump_falloff[j], 0.0, 1.0));
+            }
+        }*/
+
+        /* Crouch Area 
+        for (i = trajectory.LENGTH / 2; i < trajectory.LENGTH; i++) {
+            for (j = 0; j < areas.numCrouches(); j++) {
+                var dist_x = abs(trajectory.positions[i].x - areas.crouch_pos[j].x);
+                var dist_z = abs(trajectory.positions[i].z - areas.crouch_pos[j].z);
+                var height = (Math.sin(trajectory.positions[i].x / Areas::CROUCHWAVE) + 1.0) / 2.0;
+                trajectory.gaitCrouch[i] = glm.mix(1.0 - height, trajectory.gaitCrouch[i],
+                    glm.clamp(
+                    ((dist_x - (areas.crouchSize[j].x / 2)) +
+                        (dist_z - (areas.crouchSize[j].y / 2))) / 100.0, 0.0, 1.0));
+            }
+        }*/
+
+        /* Walls 
+        for (i = 0; i < trajectory.LENGTH; i++) {
+            trajectory.gait_bump[i] = 0.0;
+            for (int j = 0; j < areas.numWalls(); j++) {
+                var trjpoint = glm.vec2(trajectory.positions[i].x, trajectory.positions[i].z);
+                var segpoint = segment_nearest(areas.wallStart[j], areas.wallStop[j], trjpoint);
+                var segdist = glm.length(segpoint - trjpoint);
+                trajectory.gait_bump[i] = glm.max(trajectory.gait_bump[i], 1.0 - glm.clamp((segdist - areas.wallWidth[j]) / 10.0, 0.0, 1.0));
+            }
+        }*/
+
+        /* Trajectory Rotation */
+        for (i = 0; i < trajectory.LENGTH; i++) {
+            trajectory.rotations[i] = glm.mat3(glm.rotate(atan2f(
+                trajectory.directions[i].x,
+                trajectory.directions[i].z), glm.vec3(0, 1, 0)));
+        }
+
+        /* Trajectory Heights */
+        for (i = trajectory.LENGTH / 2; i < trajectory.LENGTH; i++) {
+            trajectory.positions[i].y = heightmap.sample(glm.vec2(trajectory.positions[i].x, trajectory.positions[i].z));
+        }
+
+        trajectory.heights[trajectory.LENGTH / 2] = 0.0;
+        for (i = 0; i < trajectory.LENGTH; i += 10) {
+            trajectory.heights[trajectory.LENGTH / 2] += (trajectory.positions[i].y / ((trajectory.LENGTH) / 10));
+        }
+
+        var root_position = glm.vec3(
+            trajectory.positions[trajectory.LENGTH / 2].x,
+            trajectory.heights[trajectory.LENGTH / 2],
+            trajectory.positions[trajectory.LENGTH / 2].z);
+
+        var root_rotation = trajectory.rotations[trajectory.LENGTH / 2];
+
+        /* Input Trajectory Positions / Directions */
+        for (i = 0; i < trajectory.LENGTH; i += 10) {
+            var w = (trajectory.LENGTH) / 10;
+            var pos = glm.inverse(root_rotation) * (trajectory.positions[i] - root_position);
+            var dir = glm.inverse(root_rotation) * trajectory.directions[i];
+            pfnn.Xp((w * 0) + i / 10) = pos.x; pfnn.Xp((w * 1) + i / 10) = pos.z;
+            pfnn.Xp((w * 2) + i / 10) = dir.x; pfnn.Xp((w * 3) + i / 10) = dir.z;
+        }
+
+        /* Input Trajectory Gaits */
+        for (i = 0; i < trajectory.LENGTH; i += 10) {
+            w = (trajectory.LENGTH) / 10;
+            pfnn.Xp((w * 4) + i / 10) = trajectory.gaitStand[i];
+            pfnn.Xp((w * 5) + i / 10) = trajectory.gaitWalk[i];
+            pfnn.Xp((w * 6) + i / 10) = trajectory.gaitJog[i];
+            pfnn.Xp((w * 7) + i / 10) = trajectory.gaitCrouch[i];
+            pfnn.Xp((w * 8) + i / 10) = trajectory.gaitJump[i];
+            pfnn.Xp((w * 9) + i / 10) = 0.0; // Unused.
+        }
+
+        /* Input Joint Previous Positions / Velocities / Rotations */
+        var prev_root_position = glm.vec3(
+            trajectory.positions[trajectory.LENGTH / 2 - 1].x,
+            trajectory.heights[trajectory.LENGTH / 2 - 1],
+            trajectory.positions[trajectory.LENGTH / 2 - 1].z);
+
+        var prevRootRotation = trajectory.rotations[trajectory.LENGTH / 2 - 1];
+
+        for (i = 0; i < character.JOINT_NUM; i++) {
+            var o = (((trajectory.LENGTH) / 10) * 10);
+            var pos = glm.inverse(prevRootRotation) * (character.jointPositions[i] - prev_root_position);
+            var prv = glm.inverse(prevRootRotation) *  character.jointVelocities[i];
+            pfnn.Xp(o + (character.JOINT_NUM * 3 * 0) + i * 3 + 0) = pos.x;
+            pfnn.Xp(o + (character.JOINT_NUM * 3 * 0) + i * 3 + 1) = pos.y;
+            pfnn.Xp(o + (character.JOINT_NUM * 3 * 0) + i * 3 + 2) = pos.z;
+            pfnn.Xp(o + (character.JOINT_NUM * 3 * 1) + i * 3 + 0) = prv.x;
+            pfnn.Xp(o + (character.JOINT_NUM * 3 * 1) + i * 3 + 1) = prv.y;
+            pfnn.Xp(o + (character.JOINT_NUM * 3 * 1) + i * 3 + 2) = prv.z;
+        }
+
+        /* Input Trajectory Heights */
+        for (i = 0; i < trajectory.LENGTH; i += 10) {
+            var o = (((trajectory.LENGTH) / 10) * 10) + character.JOINT_NUM * 3 * 2;
+            var w = (trajectory.LENGTH) / 10;
+            var position_r = trajectory.positions[i] + (trajectory.rotations[i] * glm.vec3(trajectory.width, 0, 0));
+            var position_l = trajectory.positions[i] + (trajectory.rotations[i] * glm.vec3(-trajectory.width, 0, 0));
+            pfnn.Xp(o + (w * 0) + (i / 10)) = heightmap.sample(glm.vec2(position_r.x, position_r.z)) - root_position.y;
+            pfnn.Xp(o + (w * 1) + (i / 10)) = trajectory.positions[i].y - root_position.y;
+            pfnn.Xp(o + (w * 2) + (i / 10)) = heightmap.sample(glm.vec2(position_l.x, position_l.z)) - root_position.y;
+        }  
+
+        //////////////////////////////////////////////////
+        // Perform Regression C++ _pre_render line 1680 //
+        //////////////////////////////////////////////////
+
+        // At this point we should have a fully populated set of input values for the PFNN (pfnn.Xp)
+        // and be ready to compare values with the C++ code. This will probably need to entail some sort
+        // of csv console output that can be pasted into a spreadsheet, as it's gonna be huge!
+
+        pfnn.predict(character.phase);
+
+        //////////////////////////////////////////////////////////////////////////////////////
+        // Build Local Transforms - apply pfnn.Yp to our character C++ pre_render line 1705 //
+        //////////////////////////////////////////////////////////////////////////////////////
+
+        /*
+        ** Blending Between the predicted positions and
+        ** the previous positions plus the velocities
+        ** smooths out the motion a bit in the case
+        ** where the two disagree with each other.
+        */
+
+        character.forward_kinematics();
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        //
+        // There are a number of differences between the PFNN demo character and the HiFi avi character
+        // Ignoring finger / thumb bones, the PFNN demo character has the following extra bones:
+        //
+        //    ROOT
+        //    Neck1
+        //    LHipJoint
+        //    RHipJoint
+        //    End Site (x5)
+        // 
+        // The joint data from these needs to be combined into parent / children joints. 
+        //
+        // Moreover, the skeleton structure differs quite significantly - the PFNN demo skeleton *looks*
+        // like Carnegie Melon data, which has always been difficult to deal with...
+        //
+        //
+
+        // Here we will update the HiFiArmature with values from Yp
+        // This is a very rough, UNTESTED attempt at retargetting
+
+        for (joint in HiFiArmature) {
+            HiFiArmature[joint].prv = 0;
+            HiFiArmature[joint].pos = MyAvatar.getJointPosition(joint);
+        }
+        var jointIndex = 0;
+        for (joint in PFNNArmature) {
+
+            jointVelocities[jointIndex] = { X:0, y:0, z:0 };
+
+            // Translate between armatures
+            switch (PFNNArmature[joint]) {
+
+                case "ROOT" :
+                    jointPositions[jointIndex] = Vec3.sum(HiFiArmature["Hips"].pos, avatarHipsToFeet(MyAvatar.position));
+                    break;
+
+                case "Neck" :
+                case "Neck1" :
+                    jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["Neck"].pos, 0.5);
+                    break;
+
+                case "LeftHipJoint" :
+                case "LeftUpLeg" :
+                    jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["LeftUpLeg"].pos, 0.5);
+                    break;
+
+                case "RightHipJoint" :
+                case "RightUpLeg" :
+                    jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["RightUpLeg"].pos, 0.5);
+                    break;
+
+                case "LowerBack" :
+                    jointPositions[jointIndex] = HiFiArmature["Spine"].pos;
+                    break;
+
+                case "Spine" :
+                    jointPositions[jointIndex] = HiFiArmature["Spine1"].pos;
+                    break;
+
+                case "Spine1" :
+                    jointPositions[jointIndex] = HiFiArmature["Spine2"].pos;
+                    break;
+
+                case "End Site" :
+                    jointPositions[jointIndex] = { x:0, y:0, z:0 };
+                    break;
+
+                default :
+                    jointPositions[jointIndex] = HiFiArmature[PFNNArmature[joint]].pos;
+                    break;
+            }
+            jointIndex++;
+        }        
+
+        /* IK? (probably not, at least to start with */
+
+
+    } // end of codeHadNoIssues
+
+
+    /////////////////////////////////////////////
+    // Render Trajectory: C++ render line 2323 //
+    /////////////////////////////////////////////
+    var currentDirection = trajectoryTargetDirectionNew;
+    var currentHeight = character.avatarHipsToFeet(MyAvatar.position);
+    var currentPosition = Vec3.sum(MyAvatar.position, { x:0, y:-currentHeight, z:0 }); 
+    var currentRotation =  trajectoryTargetRotation;// Quat.inverse(MyAvatar.orientation); // Vec3.multiplyQbyV(Quat.inverse(MyAvatar.orientation), MyAvatar.velocity); // Vec3.normalize({ x: MyAvatar.bodyYaw, y:0, z:0 }); //  MyAvatar.orientation; 
+
+    // update current trajectory
+    trajectory.positions[trajectory.LENGTH / 2] = currentPosition;
+    trajectory.rotations[trajectory.LENGTH / 2] = currentRotation;
+    trajectory.heights[trajectory.LENGTH / 2] = currentHeight;
+    trajectory.directions[trajectory.LENGTH / 2] = currentDirection;
+
+    targetDir = { x: 0, y: 0, z: 1 }; 
+    targetVel = { x: 0, y: 0, z: 0 }; 
+
+    // update future trajectory
+    for (var i = trajectory.LENGTH / 2 + 1 ; i < trajectory.LENGTH ; i++) {
+        // distance to next trajectory marker
+        var stepForward = (i - (trajectory.LENGTH / 2 + 1)) / (trajectory.MARKER_RATIO * 4);
+        var nextPosition = Vec3.sum(currentPosition, Vec3.multiply(stepForward, MyAvatar.velocity));
+        // Get the terrain height for this position
+        var forwardProbePosition = { x: nextPosition.x, y: MyAvatar.position.y, z: nextPosition.z };
+        var nextHeight = trajectory.terrainFollowing ? 
+                          character.avatarHipsToFeet(forwardProbePosition) :
+                          currentHeight; //  debug only
+        trajectory.heights[i] = nextHeight;
+        nextPosition.y = forwardProbePosition.y - nextHeight;
+        trajectory.positions[i] = nextPosition;
+    }
+
+    // update overlays
+    for (var i = 0 ; i < trajectory.LENGTH ; i+= 10) {
+        Overlays.editOverlay(trajectory.locationOverlays[i / trajectory.MARKER_RATIO], {
+            position: trajectory.positions[i],
+            rotations: trajectory.rotations[i],
+        });
+        Overlays.editOverlay(trajectory.directionOverlays[i / trajectory.MARKER_RATIO], {
+            start: trajectory.positions[i],
+            end: Vec3.sum(trajectory.positions[i], Vec3.multiply(0.25, trajectory.rotations[i]))
+        });
+    }    
+
+    // Update Past Trajectory: C++ post_render line 1954
+    for (var i = 0 ; i < trajectory.LENGTH / 2 ; i++) {
+        trajectory.positions[i] = trajectory.positions[ i + 1 ];
+        trajectory.rotations[i] = trajectory.rotations[ i + 1 ];
+        trajectory.directions[i] = trajectory.directions[i + 1];
+        trajectory.heights[i] = trajectory.heights[ i + 1 ];
+        trajectory.gaitStand[i] = trajectory.gaitStand[i+1];
+        trajectory.gaitWalk[i] = trajectory.gaitWalk[i+1];
+        trajectory.gaitJog[i] = trajectory.gaitJog[i+1];
+        trajectory.gaitCrouch[i] = trajectory.gaitCrouch[i+1];
+        trajectory.gaitJump[i] = trajectory.gaitJump[i+1];
+        trajectory.gaitBump[i] = trajectory.gaitBump[i+1];
+    }
+}
+
+
+
 
 // Load the phase functioned neural network
 pfnn = PFNN(0);
@@ -1485,15 +1646,13 @@ character = Character();
 // Initialise everything
 pfnn.initialise();          // character.initialise uses pfnn.getYp, so need to initialise first
 trajectory.initialise();    // character.initialise uses trajectory.getLength, so need to initialise first
-character.initialise();
+character.initialise();     
 
-// Input 
-//Controller.keyPressEvent.connect(processKeyPressEvent);
 
-// Main loop
-Script.update.connect(function(delta_time) {
-    character.update();
-	trajectory.update(delta_time);
+
+// Main loop 
+Script.update.connect(function(deltaTime) {
+    update(deltaTime);
 });
 
 // Tidy up
@@ -1501,5 +1660,4 @@ Script.scriptEnding.connect(function () {
     print("PFNN: Closing down");
     MyAvatar.clearJointsData();
     trajectory.clean_up();
-    //Controller.keyPressEvent.disconnect(processKeyPressEvent);
 });
