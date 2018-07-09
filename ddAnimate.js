@@ -339,9 +339,9 @@ Character = function() {
     var phase = 0;
 
     // Initialise (by calling initialise) after trajectory and pfnn are instantiated
-    var jointPositions = new Array(JOINT_NUM);
-    var jointVelocities = new Array(JOINT_NUM);
-    var jointRotations = new Array(JOINT_NUM);
+    var jointPositions = that.jointPositions = new Array(JOINT_NUM);
+    var jointVelocities = that.jointVelocities = new Array(JOINT_NUM);
+    var jointRotations = that.jointRotations = new Array(JOINT_NUM);
 
     that.strafeTarget = 0;
     that.strafeAmount = 0;
@@ -1529,48 +1529,48 @@ var update = function(deltaTime) {
     var jointIndex = 0;
     for (joint in PFNNArmature) {
 
-        jointVelocities[jointIndex] = { X:0, y:0, z:0 };
+        character.jointVelocities[jointIndex] = { X:0, y:0, z:0 };
 
         // Translate between armatures
         switch (PFNNArmature[joint]) {
 
             case "ROOT" :
-                jointPositions[jointIndex] = Vec3.sum(HiFiArmature["Hips"].pos, avatarHipsToFeet(MyAvatar.position));
+                character.jointPositions[jointIndex] = Vec3.sum(HiFiArmature["Hips"].pos, character.avatarHipsToFeet(MyAvatar.position));
                 break;
 
             case "Neck" :
             case "Neck1" :
-                jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["Neck"].pos, 0.5);
+                character.jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["Neck"].pos, 0.5);
                 break;
 
             case "LeftHipJoint" :
             case "LeftUpLeg" :
-                jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["LeftUpLeg"].pos, 0.5);
+                character.jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["LeftUpLeg"].pos, 0.5);
                 break;
 
             case "RightHipJoint" :
             case "RightUpLeg" :
-                jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["RightUpLeg"].pos, 0.5);
+                character.jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["RightUpLeg"].pos, 0.5);
                 break;
 
             case "LowerBack" :
-                jointPositions[jointIndex] = HiFiArmature["Spine"].pos;
+                character.jointPositions[jointIndex] = HiFiArmature["Spine"].pos;
                 break;
 
             case "Spine" :
-                jointPositions[jointIndex] = HiFiArmature["Spine1"].pos;
+                character.jointPositions[jointIndex] = HiFiArmature["Spine1"].pos;
                 break;
 
             case "Spine1" :
-                jointPositions[jointIndex] = HiFiArmature["Spine2"].pos;
+                character.jointPositions[jointIndex] = HiFiArmature["Spine2"].pos;
                 break;
 
             case "End Site" :
-                jointPositions[jointIndex] = { x:0, y:0, z:0 };
+                character.jointPositions[jointIndex] = { x:0, y:0, z:0 };
                 break;
 
             default :
-                jointPositions[jointIndex] = HiFiArmature[PFNNArmature[joint]].pos;
+                character.jointPositions[jointIndex] = HiFiArmature[PFNNArmature[joint]].pos;
                 break;
         }
         jointIndex++;
