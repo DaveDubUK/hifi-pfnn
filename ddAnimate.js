@@ -13,7 +13,7 @@
 //
 //
 
-print("PFNN: Starting up.");
+print("PFNN: Starting up. Yp experiments ready version");
 
 // Urgh! I give up! Hard coding locallib functions for now
 //Script.require("./libraries/pfnnApi.js");
