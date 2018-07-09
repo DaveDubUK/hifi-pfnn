@@ -1521,7 +1521,7 @@ var update = function(deltaTime) {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-
+ 
     for (joint in HiFiArmature) {
         HiFiArmature[joint].prv = 0;
         HiFiArmature[joint].pos = MyAvatar.getJointPosition(joint);
