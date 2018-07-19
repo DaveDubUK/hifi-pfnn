@@ -16,16 +16,7 @@ Many thanks to HumbleTim and Fluffy Jenkins for their help so far.
 * Initialisation functions implemented. Variable values verified by comparing with corresponding C++ output
 
 ## Current state 
-Currently debugging both C++ and JS versions simultaneously to compare variable values in update function (JS) and pre_render, render and post_render (C++).
-Current problem is with implementing C++ mix_directions function in JS:
-```c++
-static glm::vec3 mix_directions(glm::vec3 x, glm::vec3 y, float a) {
-	glm::quat x_q = glm::angleAxis(atan2f(x.x, x.z), glm::vec3(0, 1, 0));
-	glm::quat y_q = glm::angleAxis(atan2f(y.x, y.z), glm::vec3(0, 1, 0));
-	glm::quat z_q = glm::slerp(x_q, y_q, a);
-	return z_q * glm::vec3(0, 0, 1);
-}
-```
+I'm now hitting frame execution times of over 60mS, which indicates that JS may not be up to the task :-(
 
 ## Setting up environment
 Ideally, the C++ project must first be compiled and run so it can be used as a reference. 
