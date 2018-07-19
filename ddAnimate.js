@@ -34,7 +34,8 @@ var quatExp = function (vectorThree) {
             vectorThree.z * (Math.sin(w) / w)
         );
     // print(JSON.stringify(q / Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z))+" fkdjsf");
-    return q;// / Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+    //return q / Math.sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+    return glm.normalize(q);
 };
 
 var mixDirections = function (x, y, a) {
@@ -44,6 +45,30 @@ var mixDirections = function (x, y, a) {
     return z_q * glm.quat.getFront;
     //return glm.Quat.multiply(z_q, Quat.getFront);
     //return z_q * glm.vec3(0, 0, 1);
+}
+
+var quatCast = function(matrixFour) {
+
+    if (!matrixFour) {
+        return Quat.IDENTITY;
+    }
+
+    var m00 = matrixFour[0][0];
+    var m11 = matrixFour[1][1];
+    var m22 = matrixFour[2][2];
+    var m21 = matrixFour[2][1];
+    var m12 = matrixFour[1][2];
+    var m02 = matrixFour[0][2];
+    var m20 = matrixFour[2][0];
+    var m10 = matrixFour[1][0];
+    var m01 = matrixFour[0][1];
+
+    var qw= Math.sqrt(1 + m00 + m11 + m22) / 2;
+    var qx = (m21 - m12)/( 4 * qw);
+    var qy = (m02 - m20)/( 4 * qw);
+    var qz = (m10 - m01)/( 4 * qw);
+
+    return { x: qx, y: qy, z: qz, w: qw }; //Quat(qx, qy, qz, qw);
 }
 
 var options = {
@@ -335,6 +360,7 @@ Character = function() {
     var that = {};
 
     const JOINT_NUM = 31; // including End Sites (for some reason) - not 25;
+    that.numberOfJoints = JOINT_NUM;
 
     var phase = 0;
 
@@ -343,6 +369,20 @@ Character = function() {
     that.jointVelocities = new Array(JOINT_NUM);
     that.jointRotations = new Array(JOINT_NUM);
 
+    // Armature details and tranform arrays
+    // Note: 'global' in this context actually means 'local with rotation relative to root'
+    //       the non global ones are 'local with rotation relative to parent'
+    // Note 2: jointMeshXForm is the final set of transforms ready to be applied to the character
+    that.jointParents = new Array(JOINT_NUM);           // array of indices of each joint's parent
+    that.jointAnimXForm = new Array(JOINT_NUM);         // local transforms from Yp, relative to parent joint
+    that.jointRestXForm = new Array(JOINT_NUM);         // local transforms from character_xforms.json, relative to parent joint
+    that.jointGlobalRestXForm = new Array(JOINT_NUM);   // local transforms from Yp, relative to root
+    that.jointGlobalAnimXForm = new Array(JOINT_NUM);   // local transforms from character_xforms.json, relative to root
+    that.jointMeshXForm = new Array(JOINT_NUM);         // local transforms, relative to parent joint, ready to be applied to character
+
+    that.rootPosition;
+    that.rootRotation;
+
     that.strafeTarget = 0;
     that.strafeAmount = 0;
 
@@ -350,10 +390,6 @@ Character = function() {
     that.avatarHipsToFeet = function(pickRayOrigin) {
         var pickRay = { origin: pickRayOrigin, direction: { x:0, y:-1, z:0 } };
         return Entities.findRayIntersection(pickRay, true).distance; 
-    } 
-
-    that.getJointPositions = function() {
-        return jointPositions;
     }
 
     that.initialise = function() {
@@ -370,12 +406,26 @@ Character = function() {
         print("Avatar hips at { x:" + MyAvatar.position.x.toFixed(3) +
               ", y:" + MyAvatar.position.y.toFixed(3) + 
               ", z:" + MyAvatar.position.z.toFixed(3) + " }");
+        var characterJointParents = Script.require(Script.resolvePath(PATH_TO_DATA + "character_parents.json"));
+        print("Loading parent joint information and 'rest' transform matrices for character");
+        for (parent in characterJointParents) {
+            //print("Joint number's " + parent + " is " + characterJointParents[parent]);
+            that.jointParents[parent] = characterJointParents[parent];
+        }
+        //print("Armature parents loaded for character: " + that.jointParents);
+        var characterRestXForms = Script.require(Script.resolvePath(PATH_TO_DATA + "character_xforms.json"));
+        for (xForm in characterRestXForms) {
+            that.jointRestXForm[xForm] = glm.transpose(glm.mat4(characterRestXForms[xForm]));
+            //print("jointRestXForm[" + xForm + "] = " + that.jointRestXForm[xForm].json + "\n");
+        }
+        print("Loaded parent joint information and 'rest' transform matrices for character");
+        /* */
 
         var trajectoryLength = trajectory.getLength();
         //var rootPosition = Vec3.sum(MyAvatar.position, { x:0, y:-character.getAvatarHipsToFeet(), z:0 });
-        var rootPosition = glm.vec3(MyAvatar.position.x, MyAvatar.position.y, MyAvatar.position.z).add(glm.vec3(0, -hipsToFeet, 0))
+        that.rootPosition = glm.vec3(MyAvatar.position.x, MyAvatar.position.y, MyAvatar.position.z).add(glm.vec3(0, -hipsToFeet, 0))
         //print("Character.initialise: rootPosition is { x:" + rootPosition.x + ", y:" + rootPosition.y + ", z:" + rootPosition.z + " }");
-        var rootRotation = glm.mat3();
+        that.rootRotation = glm.mat3();
         var Yp = pfnn.getYp();
         var debugBool = true;
         for (i = 0; i < JOINT_NUM; i++) {
@@ -390,9 +440,9 @@ Character = function() {
             var oposZ = parseFloat(Yp[opos + i * 3 + 2]);
             var oposVec3 = glm.vec3(oposX, oposY, oposZ);
             var oposVec4 = glm.vec4(oposVec3, 1);
-            oposVec4 = glm.mat4(rootRotation).mul(oposVec4);
+            oposVec4 = glm.mat4(that.rootRotation).mul(oposVec4);
             oposVec3 = glm.vec3(oposVec4);
-            var pos = oposVec3.add(rootPosition);
+            var pos = oposVec3.add(that.rootPosition);
 
             // from: glm.vec3 vel = (root_rotation * glm.vec3(Yp(ovel + i * 3 + 0), Yp(ovel + i * 3 + 1), Yp(ovel + i * 3 + 2)));
             var ovelX = parseFloat(Yp[ovel + i * 3 + 0]);
@@ -400,7 +450,7 @@ Character = function() {
             var ovelZ = parseFloat(Yp[ovel + i * 3 + 2]);
             var ovelVec3 = glm.vec3(ovelX, ovelY, ovelZ);
             var ovelVec4 = glm.vec4(ovelVec3, 1);
-            ovelVec4 = glm.mat4(rootRotation).mul(ovelVec4);
+            ovelVec4 = glm.mat4(that.rootRotation).mul(ovelVec4);
             var vel = glm.vec3(ovelVec4);
 
             // from: glm.mat3 rot = (root_rotation * glm.toMat3(quatExp(glm.vec3(Yp(orot + i * 3 + 0), Yp(orot + i * 3 + 1), Yp(orot + i * 3 + 2)))));
@@ -410,7 +460,11 @@ Character = function() {
             var orotVec3 = glm.vec3(orotX, orotY, orotZ);
             var orotVec4 = quatExp(orotVec3);
             var orotMat3 = glm.mat3(glm.toMat4(orotVec4));
-            var rot = glm.mat3(orotMat3).mul(rootRotation);
+            var rot = glm.mat3(orotMat3).mul(that.rootRotation);
+
+            that.jointPositions[i] = pos;
+            that.jointVelocities[i] = vel;
+            that.jointRotations[i] = rot;
 
             phase = 0.0;
 
@@ -445,6 +499,30 @@ Character = function() {
             }
         }
     }
+
+    // This function updates the 'global' transforms for each joint from the 'local' transforms. 
+    // Note again that 'global' in this context actually means 'local with rotation relative to the root'
+    // and 'local' in this context actually means 'local with rotation relative to parent joint'
+    that.forwardKinematics = function() {
+        for (i = 0; i < JOINT_NUM; i++) {
+            that.jointGlobalAnimXForm[i] = that.jointAnimXForm[i];
+            that.jointGlobalRestXForm[i] = that.jointRestXForm[i];
+            var j = that.jointParents[i];
+            //print("jointAnimXForm[i] = " + that.jointAnimXForm[i].json);
+            //print("jointRestXForm[i] = " + that.jointRestXForm[i].json);
+            while (j != -1) {
+                that.jointGlobalAnimXForm[i] = that.jointAnimXForm[j].mul(that.jointGlobalAnimXForm[i]);
+                that.jointGlobalRestXForm[i] = that.jointRestXForm[j].mul(that.jointGlobalRestXForm[i]);
+                j = that.jointParents[j];
+                //print("Tracing joint " + i + "'s parent: " + j);
+            }
+            //print("jointGlobalRestXForm[" + i + "]: " + that.jointGlobalRestXForm[i]);
+            var inverseJointGlobalRestXForm = glm.inverse(that.jointGlobalRestXForm[i]);
+            that.jointMeshXForm[i] = that.jointGlobalAnimXForm[i].mul(inverseJointGlobalRestXForm);
+        }
+        //print("jointMeshXForm: " + that.jointMeshXForm);  // verified :-)
+    }
+
     return that;
 };
 
@@ -755,13 +833,13 @@ var HiFiArmature = {
 var PFNNArmature = [
     "ROOT",
     "Hips",
-    "LeftHipJoint",
+    "LHipJoint",
     "LeftUpLeg",
     "LeftLeg",
     "LeftFoot",
     "LeftToeBase",
     "End Site",
-    "RightHipJoint",
+    "RHipJoint",
     "RightUpLeg",
     "RightLeg",
     "RightFoot",
@@ -1206,7 +1284,7 @@ if (!('contains' in String.prototype)) {
     };
 }
 
-/**/
+/*
 // Display joints info, set t-stance
 var numJoints = 0;
 for (joint in prerotations.joints) {
@@ -1222,10 +1300,12 @@ for (joint in prerotations.joints) {
         numJoints++;        
     } 
 }
-print("Avatar has " + numJoints + " joints (plus end sites).");
-
+print("Avatar has " + numJoints + " joints (plus end sites)");
+*/
 
 var update = function(deltaTime) {
+
+    //var frameStartTime = new Date().getTime();
 
     // this is effectively used to comment out code that needs work
     // whilst ensuring that it at least makes sense to the JS 'compiler'
@@ -1444,21 +1524,21 @@ var update = function(deltaTime) {
 
         var prevRootRotation = trajectory.rotations[trajectory.LENGTH / 2 - 1];
 
-        for (i = 0; i < character.JOINT_NUM; i++) {
+        for (i = 0; i < character.numberOfJoints; i++) {
             var o = (((trajectory.LENGTH) / 10) * 10);
             var pos = glm.inverse(prevRootRotation) * (character.jointPositions[i] - prev_root_position);
             var prv = glm.inverse(prevRootRotation) *  character.jointVelocities[i];
-            pfnn.Xp(o + (character.JOINT_NUM * 3 * 0) + i * 3 + 0) = pos.x;
-            pfnn.Xp(o + (character.JOINT_NUM * 3 * 0) + i * 3 + 1) = pos.y;
-            pfnn.Xp(o + (character.JOINT_NUM * 3 * 0) + i * 3 + 2) = pos.z;
-            pfnn.Xp(o + (character.JOINT_NUM * 3 * 1) + i * 3 + 0) = prv.x;
-            pfnn.Xp(o + (character.JOINT_NUM * 3 * 1) + i * 3 + 1) = prv.y;
-            pfnn.Xp(o + (character.JOINT_NUM * 3 * 1) + i * 3 + 2) = prv.z;
+            pfnn.Xp(o + (character.numberOfJoints * 3 * 0) + i * 3 + 0) = pos.x;
+            pfnn.Xp(o + (character.numberOfJoints * 3 * 0) + i * 3 + 1) = pos.y;
+            pfnn.Xp(o + (character.numberOfJoints * 3 * 0) + i * 3 + 2) = pos.z;
+            pfnn.Xp(o + (character.numberOfJoints * 3 * 1) + i * 3 + 0) = prv.x;
+            pfnn.Xp(o + (character.numberOfJoints * 3 * 1) + i * 3 + 1) = prv.y;
+            pfnn.Xp(o + (character.numberOfJoints * 3 * 1) + i * 3 + 2) = prv.z;
         }
 
         /* Input Trajectory Heights */
         for (i = 0; i < trajectory.LENGTH; i += 10) {
-            var o = (((trajectory.LENGTH) / 10) * 10) + character.JOINT_NUM * 3 * 2;
+            var o = (((trajectory.LENGTH) / 10) * 10) + character.numberOfJoints * 3 * 2;
             var w = (trajectory.LENGTH) / 10;
             var position_r = trajectory.positions[i] + (trajectory.rotations[i] * glm.vec3(trajectory.width, 0, 0));
             var position_l = trajectory.positions[i] + (trajectory.rotations[i] * glm.vec3(-trajectory.width, 0, 0));
@@ -1476,10 +1556,48 @@ var update = function(deltaTime) {
         // of csv console output that can be pasted into a spreadsheet, as it's gonna be huge!
 
         pfnn.predict(character.phase);
+    } // end of codeHadNoIssues
 
-        //////////////////////////////////////////////////////////////////////////////////////
-        // Build Local Transforms - apply pfnn.Yp to our character C++ pre_render line 1705 //
-        //////////////////////////////////////////////////////////////////////////////////////
+var frameStartTime = new Date().getTime();
+
+    //////////////////////////////////////////////////////////////////////////////////////
+    // Build Local Transforms - apply pfnn.Yp to our character C++ pre_render line 1705 //
+    //////////////////////////////////////////////////////////////////////////////////////
+    //print("numberOfJoints = " + character.numberOfJoints);
+    for (var jointIndex = 0; jointIndex < character.numberOfJoints; jointIndex++) {
+
+        var opos = 8 + (((trajectory.LENGTH / 2) / 10) * 4) + (character.numberOfJoints * 3 * 0);
+        var ovel = 8 + (((trajectory.LENGTH / 2) / 10) * 4) + (character.numberOfJoints * 3 * 1);
+        var orot = 8 + (((trajectory.LENGTH / 2) / 10) * 4) + (character.numberOfJoints * 3 * 2);
+
+        // from: glm::vec3 pos = (root_rotation * glm::vec3(Yp(opos + jointIndex * 3 + 0), Yp(opos + jointIndex * 3 + 1), Yp(opos + jointIndex * 3 + 2))) + root_position;
+        // from: HumbleTim pos = glm.vec3(glm.mat4(root_rotation).mul(glm.vec4(glm.vec3(),1))).add(root_position);
+        var oposX = parseFloat(pfnn.getYp()[opos + jointIndex * 3 + 0]);
+        var oposY = parseFloat(pfnn.getYp()[opos + jointIndex * 3 + 1]);
+        var oposZ = parseFloat(pfnn.getYp()[opos + jointIndex * 3 + 2]);
+        var oposVec3 = glm.vec3(oposX, oposY, oposZ);
+        var oposVec4 = glm.vec4(oposVec3, 1);
+        oposVec4 = glm.mat4(character.rootRotation).mul(oposVec4);
+        oposVec3 = glm.vec3(oposVec4);
+        var pos = oposVec3.add(character.rootPosition);
+
+        // from: glm.vec3 vel = (root_rotation * glm.vec3(Yp(ovel + i * 3 + 0), Yp(ovel + i * 3 + 1), Yp(ovel + i * 3 + 2)));
+        var ovelX = parseFloat(pfnn.getYp()[ovel + jointIndex * 3 + 0]);
+        var ovelY = parseFloat(pfnn.getYp()[ovel + jointIndex * 3 + 1]);
+        var ovelZ = parseFloat(pfnn.getYp()[ovel + jointIndex * 3 + 2]);
+        var ovelVec3 = glm.vec3(ovelX, ovelY, ovelZ);
+        var ovelVec4 = glm.vec4(ovelVec3, 1);
+        ovelVec4 = glm.mat4(character.rootRotation).mul(ovelVec4);
+        var vel = glm.vec3(ovelVec4);
+
+        // from: glm.mat3 rot = (root_rotation * glm.toMat3(quatExp(glm.vec3(Yp(orot + i * 3 + 0), Yp(orot + i * 3 + 1), Yp(orot + i * 3 + 2)))));
+        var orotX = parseFloat(pfnn.getYp()[orot + jointIndex * 3 + 0]);
+        var orotY = parseFloat(pfnn.getYp()[orot + jointIndex * 3 + 1]);
+        var orotZ = parseFloat(pfnn.getYp()[orot + jointIndex * 3 + 2]);
+        var orotVec3 = glm.vec3(orotX, orotY, orotZ);
+        var orotVec4 = quatExp(orotVec3);
+        var orotMat3 = glm.mat3(glm.toMat4(orotVec4));
+        var rot = glm.mat3(orotMat3).mul(character.rootRotation);
 
         /*
         ** Blending Between the predicted positions and
@@ -1488,39 +1606,94 @@ var update = function(deltaTime) {
         ** where the two disagree with each other.
         */
 
-        character.forward_kinematics();
+        character.jointPositions[jointIndex] = pos; //glm.mix(character.jointPositions[jointIndex] + vel, pos, options.extraJointSmooth);
+
+        //print("character.jointPositions[" + jointIndex +"] = " + character.jointPositions[jointIndex].json);
+        //print("pos = " + pos.json);
+        //print("vel = " + vel.json);
+        //print("options.extraJointSmooth = " + options.extraJointSmooth);
+
+        character.jointPositions[jointIndex] = glm.mix(glm.add(character.jointPositions[jointIndex], vel), 
+                                                       pos, 
+                                                       options.extraJointSmooth);
+        character.jointVelocities[jointIndex] = vel;
+        character.jointRotations[jointIndex] = rot;
+
+        character.jointGlobalAnimXForm[jointIndex] = glm.transpose(glm.mat4(
+            rot[0][0], rot[1][0], rot[2][0], pos[0],
+            rot[0][1], rot[1][1], rot[2][1], pos[1],
+            rot[0][2], rot[1][2], rot[2][2], pos[2],
+            0, 0, 0, 1
+        ));
+        //print("jointGlobalAnimXForm = " + character.jointGlobalAnimXForm[jointIndex]);
+    }
+
+print("Code execution took " + (new Date().getTime() - frameStartTime).toFixed(8) + " mS");
+
+    
+if (codeHadNoIssues) {
+
+    //print("character.jointGlobalAnimXForm = " + character.jointGlobalAnimXForm);
+
+    /* Convert to local space ... yes I know this is inefficient. */
+    // Here we are actually converting from root relative rotations to parent joint relative rotations - DRW
+    for (var jointIndex = 0; jointIndex < character.numberOfJoints; jointIndex++) {
+        if (jointIndex == 0) {
+            character.jointAnimXForm[jointIndex] = character.jointGlobalAnimXForm[jointIndex];
+        } else {
+            //var inverseJointGlobalAnimXForm = glm.inverse(character.jointGlobalAnimXForm[character.jointParents[jointIndex]]);
+            //character.jointAnimXForm[jointIndex] = inverseJointGlobalAnimXForm * character.jointGlobalAnimXForm[jointIndex];
+            character.jointAnimXForm[jointIndex] = glm.inverse(character.jointGlobalAnimXForm[character.jointParents[jointIndex]]).mul(
+                                                   character.jointGlobalAnimXForm[jointIndex]);
+        }
+        //print("character.jointGlobalAnimXForm[" + character.jointParents[jointIndex] + "] = " + character.jointGlobalAnimXForm[character.jointParents[jointIndex]]);
+        //print("character.jointGlobalAnimXForm[" + jointIndex + "] = " + character.jointGlobalAnimXForm[jointIndex]);
+        //print("character.jointAnimXForm[" + jointIndex + "] = " + character.jointAnimXForm[jointIndex]);
+    }
+
+    //print("character.jointMeshXForm = " + character.jointMeshXForm);
+        
+    character.forwardKinematics();
+
+    //print("character.jointMeshXForm = " + character.jointMeshXForm);
+    //print("character.jointGlobalAnimXForm = " + character.jointGlobalAnimXForm);
+
+    /////////////////////////////////////////////////////////////////////////////
+    // At this point, character.jointMeshXForm should contain the default pose //
+    /////////////////////////////////////////////////////////////////////////////
+
+    for (i = 0, length = MyAvatar.getJointNames().length; i < length; i++) {
+        var jointRotation = quatCast(character.jointMeshXForm[i]);
+        var jointTranslation = MyAvatar.getDefaultJointTranslation(i);
+        MyAvatar.setJointData(i, jointRotation, jointTranslation);
+    }
+} // end of code had no issues
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // There are a number of differences between the PFNN demo character and the HiFi avi character
+    // Ignoring finger / thumb bones, the PFNN demo character has the following extra bones:
+    //
+    //    ROOT
+    //    Neck1
+    //    LHipJoint
+    //    RHipJoint
+    //    End Site (x5)
+    // 
+    // The joint data from these needs to be combined into parent / children joints. 
+    //
+    // Moreover, the skeleton structure differs quite significantly - the PFNN demo skeleton *looks*
+    // like Carnegie Melon data, which has always been difficult to deal with...
+    //
+    //
+
+    // Here we will update the HiFiArmature with values from Yp
+    // This is a very rough, UNTESTED attempt at retargetting
 
 
-        ////////////////////////////////////////////////////////////////////////////////////////////////////
-        //
-        // There are a number of differences between the PFNN demo character and the HiFi avi character
-        // Ignoring finger / thumb bones, the PFNN demo character has the following extra bones:
-        //
-        //    ROOT
-        //    Neck1
-        //    LHipJoint
-        //    RHipJoint
-        //    End Site (x5)
-        // 
-        // The joint data from these needs to be combined into parent / children joints. 
-        //
-        // Moreover, the skeleton structure differs quite significantly - the PFNN demo skeleton *looks*
-        // like Carnegie Melon data, which has always been difficult to deal with...
-        //
-        //
-
-        // Here we will update the HiFiArmature with values from Yp
-        // This is a very rough, UNTESTED attempt at retargetting
-    } // end of codeHadNoIssues
 
 
-
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // At this point, Yp contains the default pose, so we can apply it to the HiFi armature and *should* see the default (Ymean) pose //
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
+/*
  
     for (joint in HiFiArmature) {
         HiFiArmature[joint].prv = 0;
@@ -1575,8 +1748,8 @@ var update = function(deltaTime) {
         }
         jointIndex++;
     }        
-
-        /* IK? (probably not, at least to start with */
+*/
+    /* IK? (probably not, at least to start with */
 
 
 
@@ -1639,6 +1812,8 @@ var update = function(deltaTime) {
         trajectory.gaitJump[i] = trajectory.gaitJump[i+1];
         trajectory.gaitBump[i] = trajectory.gaitBump[i+1];
     }
+
+    //print("Frame execution took " + (new Date().getTime() - frameStartTime).toFixed(8) + " mS");
 }
 
 
