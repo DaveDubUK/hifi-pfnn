@@ -39,4 +39,4 @@ Link 3: For the GLM-JS library, see here:
 https://github.com/humbletim/glm-js
 
 Link 4: How the PFNN fits in to my larger project:
-http://davedub.co.uk/davedub/wordpress/character-animation-for-virtual-reality/
+http://davedub.co.uk/davedub/wordpress/character-animation-for-virtual-reality/ 
