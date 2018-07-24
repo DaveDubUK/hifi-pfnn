@@ -47,6 +47,9 @@ var mixDirections = function (x, y, a) {
     //return z_q * glm.vec3(0, 0, 1);
 }
 
+// Converts a 4 * 4 matrix to a quaternion
+// Adapted from http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+// Unsure if it will work, as am unsure if our 4*4 matrix is orthoganal - if not, it won't work
 var quatCast = function(matrixFour) {
 
     if (!matrixFour) {
@@ -63,13 +66,15 @@ var quatCast = function(matrixFour) {
     var m10 = matrixFour[1][0];
     var m01 = matrixFour[0][1];
 
-    var qw= Math.sqrt(1 + m00 + m11 + m22) / 2;
+    var qw = Math.sqrt(1 + m00 + m11 + m22) / 2;
     var qx = (m21 - m12)/( 4 * qw);
     var qy = (m02 - m20)/( 4 * qw);
     var qz = (m10 - m01)/( 4 * qw);
 
-    return { x: qx, y: qy, z: qz, w: qw }; //Quat(qx, qy, qz, qw);
+    return { x: qx, y: qy, z: qz, w: qw }; 
 }
+
+//var mulMat4Vec4 = glm.mul.link('mat4,vec4');
 
 var options = {
     extraVelocitySmooth : 0.9,
@@ -562,307 +567,68 @@ arrayFunctions = (function() {
 })(); // end object literal
 
 
-var HiFiArmature = {
-    "Hips" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftUpLeg" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftLeg" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftFoot" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftToeBase" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightUpLeg" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightLeg" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightFoot" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightToebase" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "Spine" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "Spine1" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "Spine2" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "Neck" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "Head" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftShoulder" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftArm" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftForeArm" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "LeftHand" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightShoulder" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightArm" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightForeArm" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    },
-    "RightHand" : {
-        pos : {
-            x : 0,
-            y : 0,
-            z : 0
-        },
-        prv : {
-            x : 0,
-            y : 0,
-            z : 0
-        }
-    }
+var hiFiAffectedJoints = {};
+var zeroOutHiFiAffectedJoints = function() {
+    hiFiAffectedJoints = {
+        "Hips" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("Hips")),
+        "LeftUpLeg" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftUpLeg")),
+        "LeftLeg" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftLeg")),
+        "LeftFoot" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftFoot")),
+        "LeftToeBase" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftToeBase")),
+        "RightUpLeg" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightUpLeg")),
+        "RightLeg" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightLeg")),
+        "RightFoot" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightFoot")),
+        "RightToeBase" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightToeBase")),
+        "Spine" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("Spine")),
+        "Spine1" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("Spine1")),
+        "Spine2" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("Spine2")),
+        "RightShoulder" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightShoulder")),
+        "RightArm" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightArm")),
+        "RightForeArm" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightForeArm")),
+        "RightHand" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("RightHand")),
+        "LeftShoulder" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftShoulder")),
+        "LeftArm" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftArm")),
+        "LeftForeArm" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftForeArm")),
+        "LeftHand" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("LeftHand")),
+        "Neck" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("Neck")),
+        "Head" : MyAvatar.getDefaultJointRotation(MyAvatar.getJointIndex("Head"))
+    };
+}
+
+
+var pfnnToHiFiArmatureMapping = {
+    "Hips" : "Hips",
+    "LHipJoint" : "LeftUpLeg",
+    "LeftUpLeg" : "LeftUpLeg",
+    "LeftLeg" : "LeftLeg",
+    "LeftFoot" : "LeftFoot",
+    "LeftToeBase" : "LeftToeBase",
+    "RHipJoint" : "RightUpLeg",
+    "RightUpLeg" : "RightUpLeg",
+    "RightLeg" : "RightLeg",
+    "RightFoot" : "RightFoot",
+    "RightToeBase" : "RightToeBase",
+    "LowerBack" : "Spine",
+    "Spine" : "Spine1",
+    "Spine1" : "Spine2",
+    "Neck" : "Neck",
+    "Neck1" : "Neck",
+    "Head" : "Head",
+    "LeftShoulder" : "LeftShoulder",
+    "LeftArm" : "LeftArm",
+    "LeftForeArm" : "LeftForeArm",
+    "LeftHand" : "LeftHand",
+    "LeftFingerBase" : "LeftHand",
+    "LeftHandIndex1" : "LeftHand",
+    "LThumb" : "LeftHand",
+    "RightShoulder" : "RightShoulder",
+    "RightArm" : "RightArm",
+    "RightForeArm" : "RightForeArm",
+    "RightHand" : "RightHand",
+    "RightFingerBase" : "RightHand",
+    "RightHandIndex1" : "RightHand",
+    "RThumb" : "RightHand"
 };
-
-
-var PFNNArmature = [
-    "ROOT",
-    "Hips",
-    "LHipJoint",
-    "LeftUpLeg",
-    "LeftLeg",
-    "LeftFoot",
-    "LeftToeBase",
-    "End Site",
-    "RHipJoint",
-    "RightUpLeg",
-    "RightLeg",
-    "RightFoot",
-    "RightToebase",
-    "End Site",
-    "LowerBack",
-    "Spine",
-    "Spine1",
-    "Neck",
-    "Neck1",
-    "Head",
-    "End Site",
-    "LeftShoulder",
-    "LeftArm",
-    "LeftForeArm",
-    "LeftHand",
-    "End Site",
-    "RightShoulder",
-    "RightArm",
-    "RightForeArm",
-    "RightHand",
-    "End Site"
-]
 
 var prerotations = {
     "name":"prerotations",
@@ -1277,6 +1043,16 @@ var prerotations = {
     }
 }
 
+// Create array of prerotation quats
+var prerotationQuats = {};
+for (joint in prerotations.joints) {
+    var x = prerotations.joints[joint]["x"];
+    var y = prerotations.joints[joint]["y"];
+    var z = prerotations.joints[joint]["z"];
+    prerotationQuats[joint] = Quat.fromPitchYawRollDegrees(x,y,z);
+    print("Joint " + joint + " has pre rot quat of " + JSON.stringify(prerotationQuats[joint], null, " "));
+}
+
 // ECMAScript 6 specification ready string.contains() function
 if (!('contains' in String.prototype)) {
     String.prototype.contains = function(str, startIndex) {
@@ -1284,25 +1060,7 @@ if (!('contains' in String.prototype)) {
     };
 }
 
-/*
-// Display joints info, set t-stance
-var numJoints = 0;
-for (joint in prerotations.joints) {
-    //print("Joint: " + joint + " : " + prerotations.joints[joint]["x"] + ", " + prerotations.joints[joint].y + ", " + prerotations.joints[joint].z);
-    MyAvatar.setJointRotation(joint, Quat.fromPitchYawRollDegrees(
-        prerotations.joints[joint]["x"],
-        prerotations.joints[joint]["y"],
-        prerotations.joints[joint]["z"])
-    );
-    if ((!joint.contains("LeftHand")  || joint == "LeftHand" ) &&
-        (!joint.contains("RightHand") || joint == "RightHand")) {
-        print("Joint " + joint + " found.");
-        numJoints++;        
-    } 
-}
-print("Avatar has " + numJoints + " joints (plus end sites)");
-*/
-
+var debugUpdate = true;
 var update = function(deltaTime) {
 
     //var frameStartTime = new Date().getTime();
@@ -1565,6 +1323,7 @@ var frameStartTime = new Date().getTime();
     //////////////////////////////////////////////////////////////////////////////////////
     //print("numberOfJoints = " + character.numberOfJoints);
     for (var jointIndex = 0; jointIndex < character.numberOfJoints; jointIndex++) {
+    //for (var jointIndex = 0; jointIndex < 1; jointIndex++) {
 
         var opos = 8 + (((trajectory.LENGTH / 2) / 10) * 4) + (character.numberOfJoints * 3 * 0);
         var ovel = 8 + (((trajectory.LENGTH / 2) / 10) * 4) + (character.numberOfJoints * 3 * 1);
@@ -1599,19 +1358,14 @@ var frameStartTime = new Date().getTime();
         var orotMat3 = glm.mat3(glm.toMat4(orotVec4));
         var rot = glm.mat3(orotMat3).mul(character.rootRotation);
 
+        
+
         /*
         ** Blending Between the predicted positions and
         ** the previous positions plus the velocities
         ** smooths out the motion a bit in the case
         ** where the two disagree with each other.
         */
-
-        character.jointPositions[jointIndex] = pos; //glm.mix(character.jointPositions[jointIndex] + vel, pos, options.extraJointSmooth);
-
-        //print("character.jointPositions[" + jointIndex +"] = " + character.jointPositions[jointIndex].json);
-        //print("pos = " + pos.json);
-        //print("vel = " + vel.json);
-        //print("options.extraJointSmooth = " + options.extraJointSmooth);
 
         character.jointPositions[jointIndex] = glm.mix(glm.add(character.jointPositions[jointIndex], vel), 
                                                        pos, 
@@ -1624,14 +1378,14 @@ var frameStartTime = new Date().getTime();
             rot[0][1], rot[1][1], rot[2][1], pos[1],
             rot[0][2], rot[1][2], rot[2][2], pos[2],
             0, 0, 0, 1
-        ));
-        //print("jointGlobalAnimXForm = " + character.jointGlobalAnimXForm[jointIndex]);
+        )); 
+        //print("jointGlobalAnimXForm = " + character.jointGlobalAnimXForm[jointIndex]);*/
     }
 
-print("Code execution took " + (new Date().getTime() - frameStartTime).toFixed(8) + " mS");
+
 
     
-if (codeHadNoIssues) {
+//if (codeHadNoIssues) {
 
     //print("character.jointGlobalAnimXForm = " + character.jointGlobalAnimXForm);
 
@@ -1651,24 +1405,21 @@ if (codeHadNoIssues) {
         //print("character.jointAnimXForm[" + jointIndex + "] = " + character.jointAnimXForm[jointIndex]);
     }
 
-    //print("character.jointMeshXForm = " + character.jointMeshXForm);
-        
+    //print("character.jointAnimXForm = " + character.jointAnimXForm);
+  
     character.forwardKinematics();
 
-    //print("character.jointMeshXForm = " + character.jointMeshXForm);
+    //print("character.jointAnimXForm = " + character.jointAnimXForm);
     //print("character.jointGlobalAnimXForm = " + character.jointGlobalAnimXForm);
 
     /////////////////////////////////////////////////////////////////////////////
     // At this point, character.jointMeshXForm should contain the default pose //
     /////////////////////////////////////////////////////////////////////////////
 
-    for (i = 0, length = MyAvatar.getJointNames().length; i < length; i++) {
-        var jointRotation = quatCast(character.jointMeshXForm[i]);
-        var jointTranslation = MyAvatar.getDefaultJointTranslation(i);
-        MyAvatar.setJointData(i, jointRotation, jointTranslation);
-    }
-} // end of code had no issues
-
+    //if (debugUpdate) {
+    //    print("First run through, character.jointAnimXForm is " + JSON.stringify(character.jointAnimXForm, null, " "));
+    //    debugUpdate = false;
+    //}     
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // There are a number of differences between the PFNN demo character and the HiFi avi character
@@ -1687,68 +1438,35 @@ if (codeHadNoIssues) {
     //
     //
 
-    // Here we will update the HiFiArmature with values from Yp
-    // This is a very rough, UNTESTED attempt at retargetting
 
 
 
-
-/*
- 
-    for (joint in HiFiArmature) {
-        HiFiArmature[joint].prv = 0;
-        HiFiArmature[joint].pos = MyAvatar.getJointPosition(joint);
+    // This sets the avatar to a t-pose
+    zeroOutHiFiAffectedJoints();
+    // Compund all the rotations (some HiFi joints rotation will comprise the summation of more than one PFNN joint)
+    var i = 0;
+    for (joint in pfnnToHiFiArmatureMapping) {
+        var jointRotation = quatCast(character.jointAnimXForm[i]);
+        //var jointRotation = quatCast(character.jointMeshXForm[i]);
+        //var jointRotation = Quat.fromPitchYawRollDegrees(character.jointRotations[i].x, character.jointRotations[i].y, character.jointRotations[i].z);
+        var hifiJointName = pfnnToHiFiArmatureMapping[joint];
+        //hiFiAffectedJoints[hifiJointName] = Quat.multiply(jointRotation, hiFiAffectedJoints[hifiJointName]);
+        hiFiAffectedJoints[hifiJointName] = Quat.multiply(hiFiAffectedJoints[hifiJointName], jointRotation);
+        i++;
     }
-    var jointIndex = 0;
-    for (joint in PFNNArmature) {
 
-        character.jointVelocities[jointIndex] = { X:0, y:0, z:0 };
+    // Apply the rotations
+    for (joint in hiFiAffectedJoints) {
+        // set the joint's rotation
+        print("Setting HiFi avatar " + joint + " rotation to " + JSON.stringify(hiFiAffectedJoints[joint]));
+        MyAvatar.setJointRotation(joint, hiFiAffectedJoints[joint]);
+    }
 
-        // Translate between armatures
-        switch (PFNNArmature[joint]) {
 
-            case "ROOT" :
-                character.jointPositions[jointIndex] = Vec3.sum(HiFiArmature["Hips"].pos, character.avatarHipsToFeet(MyAvatar.position));
-                break;
+//} // end of code had no issues
 
-            case "Neck" :
-            case "Neck1" :
-                character.jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["Neck"].pos, 0.5);
-                break;
+print("Code execution took " + (new Date().getTime() - frameStartTime).toFixed(8) + " mS");
 
-            case "LeftHipJoint" :
-            case "LeftUpLeg" :
-                character.jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["LeftUpLeg"].pos, 0.5);
-                break;
-
-            case "RightHipJoint" :
-            case "RightUpLeg" :
-                character.jointPositions[jointIndex] = Vec3.multiply(HiFiArmature["RightUpLeg"].pos, 0.5);
-                break;
-
-            case "LowerBack" :
-                character.jointPositions[jointIndex] = HiFiArmature["Spine"].pos;
-                break;
-
-            case "Spine" :
-                character.jointPositions[jointIndex] = HiFiArmature["Spine1"].pos;
-                break;
-
-            case "Spine1" :
-                character.jointPositions[jointIndex] = HiFiArmature["Spine2"].pos;
-                break;
-
-            case "End Site" :
-                character.jointPositions[jointIndex] = { x:0, y:0, z:0 };
-                break;
-
-            default :
-                character.jointPositions[jointIndex] = HiFiArmature[PFNNArmature[joint]].pos;
-                break;
-        }
-        jointIndex++;
-    }        
-*/
     /* IK? (probably not, at least to start with */
 
 

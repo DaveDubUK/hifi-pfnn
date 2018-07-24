@@ -14,18 +14,13 @@ Many thanks to HumbleTim and Fluffy Jenkins for their help so far.
 * Floor markers implemented to provide visual feedback whilst developing (see above)
 * PFNN character armature and HiFi armature have a number of structural and naming differences. Quick and dirty re-targetting has been implemented but not yet tested.
 * Initialisation functions implemented. Variable values verified by comparing with corresponding C++ output
+* For a simulated first frame, all of the local and global transforms in the JS version have been verified against the C++ version
 
-## Current state 
-Currently debugging both C++ and JS versions simultaneously to compare variable values in update function (JS) and pre_render, render and post_render (C++).
-Current problem is with implementing C++ mix_directions function in JS:
-```c++
-static glm::vec3 mix_directions(glm::vec3 x, glm::vec3 y, float a) {
-	glm::quat x_q = glm::angleAxis(atan2f(x.x, x.z), glm::vec3(0, 1, 0));
-	glm::quat y_q = glm::angleAxis(atan2f(y.x, y.z), glm::vec3(0, 1, 0));
-	glm::quat z_q = glm::slerp(x_q, y_q, a);
-	return z_q * glm::vec3(0, 0, 1);
-}
-```
+![HiFi working on Ymean projection](/ymean.png)
+
+## Current tasks
+* Projecting the 'character.jointAnimXForm' array of matrices onto the HiFi aavatar
+* I'm now hitting frame execution times of over 60mS, so optimisations have already become a necessity. Separately, I'm also working to re-produce the 'mean' pose, as extracted from the C++ version.
 
 ## Setting up environment
 Ideally, the C++ project must first be compiled and run so it can be used as a reference. 
