@@ -56,8 +56,6 @@ var quatCast = function(matrixFour) {
         return Quat.IDENTITY;
     }
 
-    //matrixFour = glm.mat4.normalize(matrixFour);
-
     var m00 = matrixFour[0][0];
     var m11 = matrixFour[1][1];
     var m22 = matrixFour[2][2];

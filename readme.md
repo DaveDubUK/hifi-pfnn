@@ -20,8 +20,8 @@ Many thanks to HumbleTim and Fluffy Jenkins for their help so far.
 ![HiFi working on Ymean projection](/ymean.png)
 
 ## Current tasks
-* Projecting the 'character.jointAnimXForm' array of matrices onto the HiFi aavatar
-* I'm now hitting frame execution times of over 60mS, so optimisations have already become a necessity. Separately, I'm also working to re-produce the 'mean' pose, as extracted from the C++ version.
+* Projecting the 'character.jointAnimXForm' array of matrices onto the HiFi aavatar to re-produce the 'mean' pose (as extracted from the C++ version)
+* I'm now hitting frame execution times of over 60mS, so optimisations have already become a necessity
 
 ## Setting up environment
 Ideally, the C++ project must first be compiled and run so it can be used as a reference. 
