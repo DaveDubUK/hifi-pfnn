@@ -15,6 +15,7 @@ Many thanks to HumbleTim and Fluffy Jenkins for their help so far.
 * PFNN character armature and HiFi armature have a number of structural and naming differences. Quick and dirty re-targetting has been implemented but not yet tested.
 * Initialisation functions implemented. Variable values verified by comparing with corresponding C++ output
 * For a simulated first frame, all of the local and global transforms in the JS version have been verified against the C++ version
+* bvh reference files have been added to aid visual verification
 
 ![HiFi working on Ymean projection](/ymean.png)
 
